@@ -12,14 +12,13 @@ import app.aaps.core.interfaces.profile.EffectiveProfile
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileRepository
 import app.aaps.core.interfaces.profile.SingleProfile
-import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventShowSnackbar
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.HardLimits
 import app.aaps.core.keys.StringNonKey
 import app.aaps.core.keys.interfaces.Preferences
-import app.aaps.core.keys.interfaces.TextRef
+import app.aaps.shared.tests.generatedTextResolver
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +51,7 @@ internal class InsulinManagementViewModelTest {
     @Mock private lateinit var profileFunction: ProfileFunction
     @Mock private lateinit var dateUtil: DateUtil
     @Mock private lateinit var hardLimits: HardLimits
-    @Mock private lateinit var rh: ResourceHelper
+    private val rh = generatedTextResolver()
     @Mock private lateinit var rxBus: RxBus
     @Mock private lateinit var persistenceLayer: PersistenceLayer
     @Mock private lateinit var profileRepository: ProfileRepository
@@ -79,7 +78,6 @@ internal class InsulinManagementViewModelTest {
         whenever(persistenceLayer.observeChanges(EPS::class)).thenReturn(emptyFlow())
         whenever(preferences.observe(StringNonKey.InsulinConfiguration)).thenReturn(configFlow)
         // gs(TextRef) is a DEFAULT interface method, so a mock returns null rather than running it.
-        whenever(rh.gs(any<TextRef>())).thenReturn("text")
         sut = InsulinManagementViewModel(
             insulinManager, preferences, profileFunction, dateUtil, hardLimits,
             rh, rxBus, persistenceLayer, profileRepository, config, batchExecutor,

@@ -49,9 +49,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.aaps.core.interfaces.maintenance.PrefsFileInfo
 import app.aaps.core.interfaces.maintenance.ImportDecryptResult
 import app.aaps.core.interfaces.maintenance.PrefsFile
+import app.aaps.core.interfaces.maintenance.PrefsFileInfo
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.AapsTheme
@@ -372,7 +372,7 @@ private fun ImportFileCard(
                 ) {
                     Icon(
                         imageVector = metaKey.icon,
-                        contentDescription = null,
+                        contentDescription = stringResource(metaKey.label),
                         modifier = Modifier
                             .padding(start = iconStartPadding, end = 8.dp)
                             .height(iconSize)
@@ -397,7 +397,7 @@ private fun ImportFileCard(
                 metadata.entries.find { it.key.key == "created_at" }?.let { (metaKey, metaEntry) ->
                     Icon(
                         imageVector = metaKey.icon,
-                        contentDescription = null,
+                        contentDescription = stringResource(metaKey.label),
                         modifier = Modifier
                             .padding(start = iconStartPadding, end = 8.dp)
                             .height(iconSize)
