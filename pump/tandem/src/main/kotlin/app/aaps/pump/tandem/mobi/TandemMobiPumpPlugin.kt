@@ -161,7 +161,6 @@ class TandemMobiPumpPlugin(
         }
         .icon(IcPluginTMobi)
         .pluginName(TextRef.AndroidRes(R.string.tandem_name_mobi))
-        .shortName(TextRef.AndroidRes(R.string.tandem_name_mobi_short))
         .description(TextRef.AndroidRes(R.string.description_pump_tandem_mobi)),
     pumpType = PumpType.TANDEM_MOBI_BT,
     rh = rh,
@@ -326,7 +325,7 @@ class TandemMobiPumpPlugin(
     }
 
 
-    override fun doCustomScheduledActions() {
+     fun doCustomScheduledActions() {
         if (pumpStatus.tandemSiteReminder!=null && pumpStatus.tandemSiteReminder!!>0) {
             if (System.currentTimeMillis() > pumpStatus.tandemSiteReminder!!) {
                 aapsLogger.error(TAG, "Show notification and delete")
