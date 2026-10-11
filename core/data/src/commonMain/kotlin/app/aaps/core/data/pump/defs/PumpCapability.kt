@@ -1,7 +1,5 @@
 package app.aaps.core.data.pump.defs
 
-import app.aaps.core.data.pump.defs.Capability.*
-
 enum class PumpCapability {
 
     // grouped by pump
@@ -14,7 +12,11 @@ enum class PumpCapability {
     InsightCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.Refill, Capability.ReplaceBattery, Capability.BasalRate30min)),
     MedtronicCapabilities(arrayOf(Capability.Bolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.Refill, Capability.ReplaceBattery, Capability.TDD)),
     OmnipodCapabilities(arrayOf(Capability.Bolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.BasalRate30min)),
-    YpsomedCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.Refill, Capability.ReplaceBattery, Capability.TDD, Capability.ManualTDDLoad)),
+    YpsomedCapabilities(
+        arrayOf(
+            Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.Refill, Capability.ReplaceBattery, Capability.TDD, Capability.ManualTDDLoad
+        )
+    ),  // BasalRates (separately grouped)
     DiaconnCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.Refill, Capability.ReplaceBattery, Capability.TDD, Capability.ManualTDDLoad)), //
     EopatchCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.BasalRate30min)),
     MedtrumCapabilities(arrayOf(Capability.Bolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.BasalRate30min, Capability.TDD)), // Technically the pump supports ExtendedBolus, but not implemented (yet)
@@ -27,10 +29,8 @@ enum class PumpCapability {
 
     var children: ArrayList<Capability> = ArrayList()
 
-    constructor(vararg capabilities: Capability) {
-        for (capability in capabilities) {
-            children.add(capability)
-        }
+    constructor(list: Array<Capability>) {
+        children.addAll(list)
     }
 
     fun hasCapability(capability: Capability): Boolean = children.contains(capability)
