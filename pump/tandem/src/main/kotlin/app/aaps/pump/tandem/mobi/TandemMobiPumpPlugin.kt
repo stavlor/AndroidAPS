@@ -1108,9 +1108,15 @@ class TandemMobiPumpPlugin(
                 changedItems.add("Max Basal")
             }
 
-            val controlIQEnabled = (pumpStatus.settings!![TandemPumpSettingType.CONTROL_IQ_ENABLED]) as Boolean
-            val test = true
-            if (controlIQEnabled || test) {
+            val controlIQEnabled: Boolean = when (
+                val v = pumpStatus.settings?.get(TandemPumpSettingType.CONTROL_IQ_ENABLED)
+            ) {
+                is Boolean -> v
+                is String  -> v.equals("true", ignoreCase = true) || v == "1"
+                is Number  -> v.toInt() != 0
+                else       -> false   // null / unknown: setting not loaded
+            }
+            if (controlIQEnabled) {
                 pumpConnectionManager.executeCustomCommand(TandemCustomCommand.SET_CONTROL_IQ, false)
                 changedItems.add("Control IQ")
             }
