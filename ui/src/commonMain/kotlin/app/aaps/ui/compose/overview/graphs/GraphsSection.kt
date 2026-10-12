@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -41,6 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -65,10 +69,10 @@ import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import kotlin.math.abs
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
-import kotlin.math.abs
 
 /**
  * Overview graphs section using Vico charts.
@@ -102,6 +106,9 @@ private val SIMPLE_MODE_CONFIG = GraphConfig(
  * turning the description into a list nobody will sit through.
  */
 private const val RECENT_VALUES_SPOKEN = 5
+
+/** How long the BG graph pop-up stays after the finger is lifted. */
+private const val INSPECT_LINGER_MS = 2_000L
 
 /** Series types available as BG graph overlays */
 private val BG_OVERLAY_SERIES = listOf(SeriesType.ACTIVITY, SeriesType.PREDICTIONS)
@@ -358,6 +365,9 @@ fun GraphsSection(
     }
 
 
+    // Shared by all graphs: the BG graph sets it on press and hold, every graph draws the line from it
+    val inspect = remember { GraphInspectState() }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -366,6 +376,7 @@ fun GraphsSection(
         // Treatment Belt Graph - running mode background + therapy events
         TreatmentBeltGraphCompose(
             viewModel = graphViewModel,
+            inspect = inspect,
             scrollState = beltScrollState,
             zoomState = beltZoomState,
             derivedTimeRange = derivedTimeRange,
@@ -405,7 +416,51 @@ fun GraphsSection(
             else                                   -> stringResource(UiStrings.a11y_bg_graph_summary_values_only, recentValues)
         }
 
-        Box(modifier = Modifier.offset(y = (-16).dp)) {
+        // Press and hold on the BG graph: a dot on the reading, a line at that time in every graph,
+        // and a pill with the values. The pill stays 2 s after the finger is lifted.
+        var inspectData by remember { mutableStateOf<InspectData?>(null) }
+        val iobGraph by graphViewModel.iobGraphFlow.collectAsStateWithLifecycle()
+        val cobGraph by graphViewModel.cobGraphFlow.collectAsStateWithLifecycle()
+        val basalGraph by graphViewModel.basalGraphFlow.collectAsStateWithLifecycle()
+        val treatmentGraph by graphViewModel.treatmentGraphFlow.collectAsStateWithLifecycle()
+        val haptic = LocalHapticFeedback.current
+        LaunchedEffect(inspect.fingerDown, inspect.targetX) {
+            val x = inspect.targetX
+            val minTimestamp = derivedTimeRange?.first
+            if (!inspect.fingerDown || x == null || minTimestamp == null) return@LaunchedEffect
+            val data = inspectDataAt(
+                timestamp = minTimestamp + (x * 60_000).toLong(),
+                bgReadings = bgReadings,
+                iob = iobGraph.iob,
+                cob = cobGraph.cob,
+                actualBasal = basalGraph.actualBasal,
+                boluses = treatmentGraph.boluses,
+                carbs = treatmentGraph.carbs
+            )
+            inspect.shownX = timestampToX(data.timestamp, minTimestamp)
+            inspect.dotValue = data.bg?.value
+            inspectData = data
+        }
+        LaunchedEffect(inspect.fingerDown) {
+            if (inspect.fingerDown) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        LaunchedEffect(inspectData?.timestamp) {
+            if (inspect.fingerDown && inspectData != null) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+        LaunchedEffect(inspect.fingerDown, inspectData) {
+            if (!inspect.fingerDown && inspectData != null) {
+                delay(INSPECT_LINGER_MS)
+                inspectData = null
+            }
+        }
+        val inspectDotColor = inspectData?.bg?.range?.inspectColor() ?: Color.Unspecified
+        SideEffect { inspect.dotColor = inspectDotColor }
+
+        Box(
+            modifier = Modifier
+                .offset(y = (-16).dp)
+                .graphInspectTouch(inspect)
+        ) {
             BgGraphCompose(
                 viewModel = graphViewModel,
                 bgOverlays = graphConfig.bgOverlays,
@@ -414,6 +469,7 @@ fun GraphsSection(
                 derivedTimeRange = derivedTimeRange,
                 nowTimestamp = nowTimestamp,
                 visibleTimeRange = bgVisibleTimeRange,
+                inspect = inspect,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(graphConfig.bgHeight.dp)
@@ -430,6 +486,14 @@ fun GraphsSection(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(end = 4.dp, top = 2.dp)
+                )
+            }
+            inspectData?.let { data ->
+                GraphInspectPill(
+                    data = data,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 2.dp, start = 36.dp, end = 36.dp)
                 )
             }
         }
@@ -462,6 +526,7 @@ fun GraphsSection(
                 nowTimestamp = nowTimestamp,
                 activityOverlay = SeriesType.ACTIVITY in graphConfig.iobOverlays,
                 onVisibleRangeChanged = { iobVisibleRange = it },
+                inspect = inspect,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(graphConfig.iobHeight.dp)
@@ -509,6 +574,7 @@ fun GraphsSection(
             Box(modifier = Modifier.offset(y = (-8).dp)) {
                 SecondaryGraphCompose(
                     viewModel = graphViewModel,
+                    inspect = inspect,
                     seriesTypes = secondary.series,
                     scrollState = secScrollStates[i],
                     zoomState = secZoomStates[i],
