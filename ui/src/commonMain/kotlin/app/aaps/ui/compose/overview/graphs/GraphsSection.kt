@@ -30,7 +30,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,9 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -70,10 +66,10 @@ import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
-import kotlin.math.abs
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
+import kotlin.math.abs
 
 /**
  * Overview graphs section using Vico charts.
@@ -108,45 +104,8 @@ private val SIMPLE_MODE_CONFIG = GraphConfig(
  */
 private const val RECENT_VALUES_SPOKEN = 5
 
-/** Which way a predicted curve is travelling, which decides the sentence spoken for it. */
-internal enum class PredictionDirection { UP, DOWN, FLAT }
-
-/**
- * The point of a predicted curve worth saying out loud, and which way it lies from [current].
- *
- * The furthest excursion from the current glucose, not the last point: a curve that dips to 3.2
- * before settling at 6.0 matters for the dip, and "heading down to" is how a user describes it.
- * A curve that only rises therefore reports its peak, one that only falls reports its trough, and
- * one that goes nowhere reports the value it holds.
- *
- * [values] must already be in the user's units. Returns null for an empty curve.
- */
-internal fun predictionExtreme(values: List<Double>, current: Double): Pair<Double, PredictionDirection>? {
-    if (values.isEmpty()) return null
-    val highest = values.max()
-    val lowest = values.min()
-    val up = highest - current
-    val down = current - lowest
-    return when {
-        up > down -> highest to PredictionDirection.UP
-        down > up -> lowest to PredictionDirection.DOWN
-        else      -> current to PredictionDirection.FLAT
-    }
-}
-
-/**
- * The predicted curves in the order they are spoken, with the name each is spoken by.
- *
- * Carbs first because a meal is what a user is most often checking on, then insulin, then the two
- * that only appear in some setups. Absorbed COB exists on AMA only and is simply absent otherwise.
- */
-private val PREDICTION_SPOKEN_ORDER = listOf(
-    BgType.COB_PREDICTION to UiStrings.a11y_prediction_name_cob,
-    BgType.IOB_PREDICTION to UiStrings.a11y_prediction_name_iob,
-    BgType.A_COB_PREDICTION to UiStrings.a11y_prediction_name_acob,
-    BgType.UAM_PREDICTION to UiStrings.a11y_prediction_name_uam,
-    BgType.ZT_PREDICTION to UiStrings.a11y_prediction_name_zt
-)
+/** Moves the pill up over the treatment belt (48 dp, of which 16 dp overlap the BG graph). */
+private val INSPECT_PILL_OFFSET = (-32).dp
 
 /** Series types available as BG graph overlays */
 private val BG_OVERLAY_SERIES = listOf(SeriesType.ACTIVITY, SeriesType.PREDICTIONS)
@@ -403,7 +362,7 @@ fun GraphsSection(
     }
 
 
-    // Shared by all graphs: the BG graph sets it on press and hold, every graph draws the line from it
+    // Set by the BG graph, read by every graph
     val inspect = remember { GraphInspectState() }
 
     Column(
@@ -454,43 +413,11 @@ fun GraphsSection(
             else                                   -> stringResource(UiStrings.a11y_bg_graph_summary_values_only, recentValues)
         }
 
-        // The predicted curves are drawn and nothing else on the screen states them, so they were
-        // out of reach entirely. Each curve gets one sentence naming where it is heading, which is
-        // what a listener can actually hold in their head - reading a whole series of points back
-        // would be unusable. Reported as the biggest excursion from the current glucose rather than
-        // the final point, because a curve that dips to 3.2 before settling at 6.0 matters for the
-        // dip, and that is the reading of "heading up to" or "down to" a user means.
-        val currentValue = remember(bgReadings) { newestReadings(bgReadings, 1).firstOrNull()?.value }
-        val unitLabel = if (profileUtil.units == GlucoseUnit.MMOL) stringResource(CoreUiStrings.mmol) else stringResource(CoreUiStrings.mgdl)
-        // Nothing is said about curves the user has switched off the graph.
-        val predictionsVisible = SeriesType.PREDICTIONS in graphConfig.bgOverlays
-        val predictionExtremes = remember(predictions, currentValue, predictionsVisible) {
-            if (!predictionsVisible || currentValue == null) emptyList()
-            else PREDICTION_SPOKEN_ORDER.mapNotNull { (type, name) ->
-                predictionExtreme(predictions.filter { it.type == type }.map { it.value }, currentValue)
-                    ?.let { (value, direction) -> Triple(name, value, direction) }
-            }
-        }
-        // map, not joinToString: the latter is not inline, so a @Composable call cannot sit in its
-        // lambda. The finished sentences are joined afterwards, as the graph summary joins its values.
-        val predictionSentences = predictionExtremes.map { (name, value, direction) ->
-            // BgDataPoint.value is ALREADY in the user's units, as above: format, never convert.
-            val shown = stringResource(
-                CoreUiStrings.value_with_unit,
-                if (profileUtil.units == GlucoseUnit.MGDL) decimalFormatter.to0Decimal(value) else decimalFormatter.to1Decimal(value),
-                unitLabel
-            )
-            when (direction) {
-                PredictionDirection.UP   -> stringResource(UiStrings.a11y_prediction_rises, stringResource(name), shown)
-                PredictionDirection.DOWN -> stringResource(UiStrings.a11y_prediction_falls, stringResource(name), shown)
-                PredictionDirection.FLAT -> stringResource(UiStrings.a11y_prediction_flat, stringResource(name), shown)
-            }
-        }
-        val predictionDescription =
-            if (predictionSentences.isEmpty()) null
-            else stringResource(UiStrings.a11y_predictions, predictionSentences.joinToString(" "))
-
-        Box(modifier = Modifier.offset(y = (-16).dp)) {
+        Box(
+            modifier = Modifier
+                .offset(y = (-16).dp)
+                .graphInspectTouch(inspect)
+        ) {
             BgGraphCompose(
                 viewModel = graphViewModel,
                 bgOverlays = graphConfig.bgOverlays,
@@ -526,17 +453,16 @@ fun GraphsSection(
                         .padding(end = 4.dp, top = 2.dp)
                 )
             }
-        }
-        // A node of its own rather than more text on the graph above, so a listener reaches the
-        // readings first and swipes once to decide whether she wants the forecast, instead of having
-        // to sit through it every time. It needs real bounds to be reachable at all, hence a 1 dp
-        // strip: invisible on screen, present in the accessibility tree.
-        predictionDescription?.let { description ->
-            Spacer(
+            // Own composable, so a finger move does not recompose this section
+            GraphInspectOverlay(
+                inspect = inspect,
+                graphViewModel = graphViewModel,
+                bgReadings = bgReadings,
+                minTimestamp = derivedTimeRange?.first,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .semantics { contentDescription = description }
+                    .align(Alignment.TopCenter)
+                    .offset(y = INSPECT_PILL_OFFSET)
+                    .padding(top = 2.dp, start = 36.dp, end = 36.dp)
             )
         }
         if (editingBgOverlays) {
