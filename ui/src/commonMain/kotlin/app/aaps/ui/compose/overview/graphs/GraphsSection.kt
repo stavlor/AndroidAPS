@@ -107,6 +107,9 @@ private val SIMPLE_MODE_CONFIG = GraphConfig(
  */
 private const val RECENT_VALUES_SPOKEN = 5
 
+/** Moves the pill up over the treatment belt (48 dp, of which 16 dp overlap the BG graph). */
+private val INSPECT_PILL_OFFSET = (-32).dp
+
 /**
  * The space the time labels took under each graph below BG, before they were removed (measured: the plot
  * grew by 27 px at 420 dpi). These graphs are drawn this much shorter than their height setting, so the
@@ -149,8 +152,45 @@ private fun Modifier.pullUp(amount: Dp): Modifier = layout { measurable, constra
     }
 }
 
-/** Moves the pill up over the treatment belt (48 dp, of which 16 dp overlap the BG graph). */
-private val INSPECT_PILL_OFFSET = (-32).dp
+/** Which way a predicted curve is travelling, which decides the sentence spoken for it. */
+internal enum class PredictionDirection { UP, DOWN, FLAT }
+
+/**
+ * The point of a predicted curve worth saying out loud, and which way it lies from [current].
+ *
+ * The furthest excursion from the current glucose, not the last point: a curve that dips to 3.2
+ * before settling at 6.0 matters for the dip, and "heading down to" is how a user describes it.
+ * A curve that only rises therefore reports its peak, one that only falls reports its trough, and
+ * one that goes nowhere reports the value it holds.
+ *
+ * [values] must already be in the user's units. Returns null for an empty curve.
+ */
+internal fun predictionExtreme(values: List<Double>, current: Double): Pair<Double, PredictionDirection>? {
+    if (values.isEmpty()) return null
+    val highest = values.max()
+    val lowest = values.min()
+    val up = highest - current
+    val down = current - lowest
+    return when {
+        up > down -> highest to PredictionDirection.UP
+        down > up -> lowest to PredictionDirection.DOWN
+        else      -> current to PredictionDirection.FLAT
+    }
+}
+
+/**
+ * The predicted curves in the order they are spoken, with the name each is spoken by.
+ *
+ * Carbs first because a meal is what a user is most often checking on, then insulin, then the two
+ * that only appear in some setups. Absorbed COB exists on AMA only and is simply absent otherwise.
+ */
+private val PREDICTION_SPOKEN_ORDER = listOf(
+    BgType.COB_PREDICTION to UiStrings.a11y_prediction_name_cob,
+    BgType.IOB_PREDICTION to UiStrings.a11y_prediction_name_iob,
+    BgType.A_COB_PREDICTION to UiStrings.a11y_prediction_name_acob,
+    BgType.UAM_PREDICTION to UiStrings.a11y_prediction_name_uam,
+    BgType.ZT_PREDICTION to UiStrings.a11y_prediction_name_zt
+)
 
 /** Series types available as BG graph overlays */
 private val BG_OVERLAY_SERIES = listOf(SeriesType.ACTIVITY, SeriesType.PREDICTIONS)
@@ -466,6 +506,42 @@ fun GraphsSection(
 
             else                                   -> stringResource(UiStrings.a11y_bg_graph_summary_values_only, recentValues)
         }
+
+        // The predicted curves are drawn and nothing else on the screen states them, so they were
+        // out of reach entirely. Each curve gets one sentence naming where it is heading, which is
+        // what a listener can actually hold in their head - reading a whole series of points back
+        // would be unusable. Reported as the biggest excursion from the current glucose rather than
+        // the final point, because a curve that dips to 3.2 before settling at 6.0 matters for the
+        // dip, and that is the reading of "heading up to" or "down to" a user means.
+        val currentValue = remember(bgReadings) { newestReadings(bgReadings, 1).firstOrNull()?.value }
+        val unitLabel = if (profileUtil.units == GlucoseUnit.MMOL) stringResource(CoreUiStrings.mmol) else stringResource(CoreUiStrings.mgdl)
+        // Nothing is said about curves the user has switched off the graph.
+        val predictionsVisible = SeriesType.PREDICTIONS in graphConfig.bgOverlays
+        val predictionExtremes = remember(predictions, currentValue, predictionsVisible) {
+            if (!predictionsVisible || currentValue == null) emptyList()
+            else PREDICTION_SPOKEN_ORDER.mapNotNull { (type, name) ->
+                predictionExtreme(predictions.filter { it.type == type }.map { it.value }, currentValue)
+                    ?.let { (value, direction) -> Triple(name, value, direction) }
+            }
+        }
+        // map, not joinToString: the latter is not inline, so a @Composable call cannot sit in its
+        // lambda. The finished sentences are joined afterwards, as the graph summary joins its values.
+        val predictionSentences = predictionExtremes.map { (name, value, direction) ->
+            // BgDataPoint.value is ALREADY in the user's units, as above: format, never convert.
+            val shown = stringResource(
+                CoreUiStrings.value_with_unit,
+                if (profileUtil.units == GlucoseUnit.MGDL) decimalFormatter.to0Decimal(value) else decimalFormatter.to1Decimal(value),
+                unitLabel
+            )
+            when (direction) {
+                PredictionDirection.UP   -> stringResource(UiStrings.a11y_prediction_rises, stringResource(name), shown)
+                PredictionDirection.DOWN -> stringResource(UiStrings.a11y_prediction_falls, stringResource(name), shown)
+                PredictionDirection.FLAT -> stringResource(UiStrings.a11y_prediction_flat, stringResource(name), shown)
+            }
+        }
+        val predictionDescription =
+            if (predictionSentences.isEmpty()) null
+            else stringResource(UiStrings.a11y_predictions, predictionSentences.joinToString(" "))
 
         Box(
             modifier = Modifier
