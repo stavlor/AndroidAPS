@@ -23,19 +23,18 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.data.configuration.Constants
 import app.aaps.core.data.model.RM
+import app.aaps.core.data.model.endOf
 import app.aaps.core.interfaces.InterfacesStrings
 import app.aaps.core.interfaces.overview.graph.TherapyEventGraphPoint
 import app.aaps.core.interfaces.overview.graph.TherapyEventType
 import app.aaps.core.ui.CoreUiStrings
-import app.aaps.core.ui.compose.LocalDateUtil
 import app.aaps.core.ui.compose.AapsTheme
+import app.aaps.core.ui.compose.LocalDateUtil
 import app.aaps.core.ui.compose.icons.IcActivity
 import app.aaps.core.ui.compose.icons.IcAnnouncement
-import app.aaps.core.ui.compose.icons.IcBgCheck
 import app.aaps.core.ui.compose.icons.IcClinicalNotes
 import app.aaps.core.ui.compose.icons.IcNote
 import app.aaps.core.ui.compose.stringResource
-import app.aaps.ui.UiStrings
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.VicoZoomState
@@ -69,7 +68,11 @@ private val modeSegmentsKey = ExtraStore.Key<List<Triple<Double, Double, RM.Mode
 /**
  * Treatment Belt Graph — thin graph above BG graph showing:
  * - Running mode background colors (colored rectangles per mode segment)
- * - Therapy event icons (MBG, Finger Stick, Announcement, Exercise, etc.)
+ * - Therapy event icons (Announcement, Exercise, notes, etc.)
+ *
+ * An event that carries a glucose value (a meter value, a BG check) is NOT here: it is drawn inside
+ * the BG graph at its own value, where it can be compared with the sensor curve. Such an event
+ * without a value — not something the careportal can create — is then not drawn at all.
  *
  * Architecture:
  * - Fixed Y range (0.0 to 1.0) — all events plotted at Y=0.5
@@ -81,14 +84,12 @@ private val modeSegmentsKey = ExtraStore.Key<List<Triple<Double, Double, RM.Mode
  *
  * Dynamic series order (must match lines list):
  *   1. Running mode segments (0..N, each = 2-point at Y=1.0 with area fill)
- *   2. MBG points (conditional)
- *   3. Finger Stick points (conditional)
- *   4. Announcement points (conditional)
- *   5. Settings Export points (conditional)
- *   6. General event points (conditional)
- *   7. Exercise duration lines (0..M, each = 2-point at Y=1.0, top)
- *   8. General with duration lines (0..K, each = 2-point at Y=1.0, top)
- *   9. Normalizer (always last)
+ *   2. Announcement points (conditional)
+ *   3. Settings Export points (conditional)
+ *   4. General event points (conditional)
+ *   5. Exercise duration lines (0..M, each = 2-point at Y=1.0, top)
+ *   6. General with duration lines (0..K, each = 2-point at Y=1.0, top)
+ *   7. Normalizer (always last)
  */
 @Composable
 fun TreatmentBeltGraphCompose(
@@ -97,6 +98,8 @@ fun TreatmentBeltGraphCompose(
     zoomState: VicoZoomState,
     derivedTimeRange: Pair<Long, Long>?,
     nowTimestamp: Long,
+    /** While holding the BG graph, a line at the inspected time. Null turns it off. */
+    inspect: GraphInspectState? = null,
     modifier: Modifier = Modifier
 ) {
     val dateUtil = LocalDateUtil.current
@@ -115,13 +118,11 @@ fun TreatmentBeltGraphCompose(
 
     // Colors from theme
     val elementColors = AapsTheme.elementColors
-    val bgCheckColor = elementColors.bgCheck
     val announcementColor = elementColors.announcement
     val careportalColor = elementColors.careportal
     val exerciseColor = elementColors.exercise
 
     // Icon painters for therapy events
-    val bgCheckPainter = rememberVectorPainter(IcBgCheck)
     val announcementPainter = rememberVectorPainter(IcAnnouncement)
     val activityPainter = rememberVectorPainter(IcActivity)
     val notePainter = rememberVectorPainter(IcNote)
@@ -145,8 +146,6 @@ fun TreatmentBeltGraphCompose(
     // Track which series are present (for dynamic line matching)
     val renderedModeSegmentsState = remember { mutableStateOf<List<Triple<Double, Double, RM.Mode>>>(emptyList()) }
     val modeSegmentCountState = remember { mutableIntStateOf(0) }
-    val hasMbgState = remember { mutableStateOf(false) }
-    val hasFingerStickState = remember { mutableStateOf(false) }
     val hasAnnouncementState = remember { mutableStateOf(false) }
     val hasSettingsExportState = remember { mutableStateOf(false) }
     val hasGeneralState = remember { mutableStateOf(false) }
@@ -168,8 +167,6 @@ fun TreatmentBeltGraphCompose(
                 lineModel { series(x = normalizerX(maxX), y = NORMALIZER_Y) }
             }
             modeSegmentCountState.intValue = 0
-            hasMbgState.value = false
-            hasFingerStickState.value = false
             hasAnnouncementState.value = false
             hasSettingsExportState.value = false
             hasGeneralState.value = false
@@ -181,7 +178,9 @@ fun TreatmentBeltGraphCompose(
         val activeRunningModeData = lastRunningModeData.value
         val segments = activeRunningModeData.segments
         val activeTreatmentData = lastTreatmentData.value
+        // Meter values and BG checks live in the BG graph now, at their own glucose value
         val therapyEvents = activeTreatmentData.therapyEvents
+            .filter { it.eventType != TherapyEventType.MBG && it.eventType != TherapyEventType.FINGER_STICK }
 
         // Prepare running mode segment series data (all modes get a color)
         val rawModeSegments = segments.mapNotNull { segment ->
@@ -199,12 +198,6 @@ fun TreatmentBeltGraphCompose(
         val modeSegmentSeries = rawModeSegments
 
         // Group therapy events by type (non-duration events)
-        val mbgPoints = therapyEvents
-            .filter { it.eventType == TherapyEventType.MBG }
-            .map { timestampToX(it.timestamp, minTimestamp) to 0.5 }
-        val fingerStickPoints = therapyEvents
-            .filter { it.eventType == TherapyEventType.FINGER_STICK }
-            .map { timestampToX(it.timestamp, minTimestamp) to 0.5 }
         val announcementPoints = therapyEvents
             .filter { it.eventType == TherapyEventType.ANNOUNCEMENT }
             .map { timestampToX(it.timestamp, minTimestamp) to 0.5 }
@@ -220,7 +213,7 @@ fun TreatmentBeltGraphCompose(
             .filter { it.eventType == TherapyEventType.EXERCISE && it.duration > 0 }
             .mapNotNull { event ->
                 val startX = timestampToX(event.timestamp, minTimestamp)
-                val endX = timestampToX(event.timestamp + event.duration, minTimestamp)
+                val endX = timestampToX(endOf(event.timestamp, event.duration), minTimestamp)
                 if (endX < minX || startX > maxX) return@mapNotNull null
                 val cStart = startX.coerceIn(minX, maxX)
                 val cEnd = endX.coerceIn(minX, maxX)
@@ -231,7 +224,7 @@ fun TreatmentBeltGraphCompose(
             .filter { it.eventType == TherapyEventType.GENERAL_WITH_DURATION && it.duration > 0 }
             .mapNotNull { event ->
                 val startX = timestampToX(event.timestamp, minTimestamp)
-                val endX = timestampToX(event.timestamp + event.duration, minTimestamp)
+                val endX = timestampToX(endOf(event.timestamp, event.duration), minTimestamp)
                 if (endX < minX || startX > maxX) return@mapNotNull null
                 val cStart = startX.coerceIn(minX, maxX)
                 val cEnd = endX.coerceIn(minX, maxX)
@@ -239,8 +232,6 @@ fun TreatmentBeltGraphCompose(
                 cStart to cEnd
             }
 
-        var hasMbg = false
-        var hasFingerStick = false
         var hasAnnouncement = false
         var hasSettingsExport = false
         var hasGeneral = false
@@ -253,16 +244,6 @@ fun TreatmentBeltGraphCompose(
                 }
 
                 // 2. Non-duration therapy events (grouped by type)
-                val mbgFiltered = filterToRange(mbgPoints, minX, maxX)
-                if (mbgFiltered.isNotEmpty()) {
-                    series(x = mbgFiltered.map { it.first }, y = mbgFiltered.map { it.second })
-                    hasMbg = true
-                }
-                val fsFiltered = filterToRange(fingerStickPoints, minX, maxX)
-                if (fsFiltered.isNotEmpty()) {
-                    series(x = fsFiltered.map { it.first }, y = fsFiltered.map { it.second })
-                    hasFingerStick = true
-                }
                 val annFiltered = filterToRange(announcementPoints, minX, maxX)
                 if (annFiltered.isNotEmpty()) {
                     series(x = annFiltered.map { it.first }, y = annFiltered.map { it.second })
@@ -296,7 +277,7 @@ fun TreatmentBeltGraphCompose(
                         val x = timestampToX(event.timestamp, minTimestamp)
                         put(x, event)
                         if (event.duration > 0) {
-                            put(timestampToX(event.timestamp + event.duration, minTimestamp), event)
+                            put(timestampToX(endOf(event.timestamp, event.duration), minTimestamp), event)
                         }
                     }
                 }
@@ -307,8 +288,6 @@ fun TreatmentBeltGraphCompose(
         // Update state after transaction
         renderedModeSegmentsState.value = modeSegmentSeries
         modeSegmentCountState.intValue = modeSegmentSeries.size
-        hasMbgState.value = hasMbg
-        hasFingerStickState.value = hasFingerStick
         hasAnnouncementState.value = hasAnnouncement
         hasSettingsExportState.value = hasSettingsExport
         hasGeneralState.value = hasGeneral
@@ -338,30 +317,6 @@ fun TreatmentBeltGraphCompose(
     val renderedModeSegments by renderedModeSegmentsState
 
     // Therapy event icon point styles
-    val mbgLine = remember(bgCheckColor, bgCheckPainter) {
-        LineCartesianLayer.Line(
-            fill = LineCartesianLayer.LineFill.single(Fill(Color.Transparent)),
-            areaFill = null,
-            pointProvider = LineCartesianLayer.PointProvider.single(
-                LineCartesianLayer.Point(
-                    component = PainterComponent(bgCheckPainter, tint = bgCheckColor.copy(alpha = 0.5f)),
-                    size = 16.dp
-                )
-            )
-        )
-    }
-    val fingerStickLine = remember(bgCheckColor, bgCheckPainter) {
-        LineCartesianLayer.Line(
-            fill = LineCartesianLayer.LineFill.single(Fill(Color.Transparent)),
-            areaFill = null,
-            pointProvider = LineCartesianLayer.PointProvider.single(
-                LineCartesianLayer.Point(
-                    component = PainterComponent(bgCheckPainter, tint = bgCheckColor),
-                    size = 16.dp
-                )
-            )
-        )
-    }
     val announcementLine = remember(announcementColor, announcementPainter) {
         LineCartesianLayer.Line(
             fill = LineCartesianLayer.LineFill.single(Fill(Color.Transparent)),
@@ -430,8 +385,6 @@ fun TreatmentBeltGraphCompose(
 
     // Build lines list dynamically — MUST match series order from LaunchedEffect
     val modeSegmentCount by modeSegmentCountState
-    val hasMbg by hasMbgState
-    val hasFingerStick by hasFingerStickState
     val hasAnnouncement by hasAnnouncementState
     val hasSettingsExport by hasSettingsExportState
     val hasGeneral by hasGeneralState
@@ -440,9 +393,9 @@ fun TreatmentBeltGraphCompose(
 
     val lines = remember(
         modeSegmentCount, renderedModeSegments,
-        hasMbg, hasFingerStick, hasAnnouncement, hasSettingsExport, hasGeneral,
+        hasAnnouncement, hasSettingsExport, hasGeneral,
         exerciseDurationCount, generalDurationCount,
-        mbgLine, fingerStickLine, announcementLine, settingsExportLine, generalLine,
+        announcementLine, settingsExportLine, generalLine,
         exerciseDurationLine, generalDurationLine, normalizerLine
     ) {
         buildList {
@@ -451,8 +404,6 @@ fun TreatmentBeltGraphCompose(
                 add(createModeSegmentLine(modeColor(mode)))
             }
             // 2. Non-duration therapy event lines
-            if (hasMbg) add(mbgLine)
-            if (hasFingerStick) add(fingerStickLine)
             if (hasAnnouncement) add(announcementLine)
             if (hasSettingsExport) add(settingsExportLine)
             if (hasGeneral) add(generalLine)
@@ -477,7 +428,8 @@ fun TreatmentBeltGraphCompose(
     // Now line decoration
     val nowLineColor = MaterialTheme.colorScheme.onSurface
     val nowLine = rememberNowLine(minTimestamp, nowTimestamp, nowLineColor)
-    val beltDecorations = remember(nowLine) { listOf(nowLine) }
+    val inspectLine = rememberInspectLine(inspect)
+    val beltDecorations = remember(nowLine, inspectLine) { listOfNotNull(nowLine, inspectLine) }
 
     val rangeProvider = remember(maxX) {
         CartesianLayerRangeProvider.fixed(minX = 0.0, maxX = maxX, minY = 0.0, maxY = 1.0)

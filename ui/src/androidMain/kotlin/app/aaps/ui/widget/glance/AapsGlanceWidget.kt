@@ -21,6 +21,8 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.semantics.contentDescription
+import androidx.glance.semantics.semantics
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
@@ -132,13 +134,15 @@ private fun BgPanel(state: WidgetRenderState, modifier: GlanceModifier) {
                         fontSize = 44.sp,
                         fontWeight = FontWeight.Bold,
                         textDecoration = if (state.strikeThrough) TextDecoration.LineThrough else TextDecoration.None
-                    )
+                    ),
+                    // Says "old reading" when the value is struck through.
+                    modifier = GlanceModifier.semantics { contentDescription = state.bgSpoken }
                 )
                 if (state.arrowResId != null) {
                     Spacer(modifier = GlanceModifier.width(4.dp))
                     Image(
                         provider = ImageProvider(state.arrowResId),
-                        contentDescription = null,
+                        contentDescription = state.arrowDescription,
                         modifier = GlanceModifier.size(30.dp),
                         colorFilter = ColorFilter.tint(ColorProvider(bgColor))
                     )
@@ -209,7 +213,8 @@ private fun ChipsPanel(state: WidgetRenderState, modifier: GlanceModifier) {
             }
             TbrChip(
                 modifier = GlanceModifier.fillMaxHeight(),
-                iconResId = state.tbrIconResId
+                iconResId = state.tbrIconResId,
+                iconDescription = state.tbrDescription
             )
         }
         Spacer(modifier = GlanceModifier.height(ChipGap))
@@ -218,6 +223,7 @@ private fun ChipsPanel(state: WidgetRenderState, modifier: GlanceModifier) {
                 modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
                 text = state.iobText,
                 iconResId = state.iobIconResId,
+                iconDescription = state.iobLabel,
                 accentColor = DarkElementColors.insulin,
                 isActive = state.iobActive
             )
@@ -226,6 +232,7 @@ private fun ChipsPanel(state: WidgetRenderState, modifier: GlanceModifier) {
                 modifier = GlanceModifier.defaultWeight().fillMaxHeight(),
                 text = state.cobText,
                 iconResId = state.cobIconResId,
+                iconDescription = state.cobLabel,
                 accentColor = DarkElementColors.cob,
                 isActive = state.cobActive,
                 maxLines = 2
@@ -243,7 +250,9 @@ private fun Chip(
     isActive: Boolean,
     colorText: Boolean = false,
     maxLines: Int = 1,
-    backgroundAlpha: Float = 0.2f
+    backgroundAlpha: Float = 0.2f,
+    /** Spoken name of the icon. The text beside it is a bare value, so the icon carries the noun. */
+    iconDescription: String? = null
 ) {
     val background = if (isActive) accentColor.copy(alpha = backgroundAlpha) else Color.Transparent
     val textColor = if (colorText) accentColor else TextMuted
@@ -257,7 +266,7 @@ private fun Chip(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 provider = ImageProvider(iconResId),
-                contentDescription = null,
+                contentDescription = iconDescription,
                 modifier = GlanceModifier.size(ChipIconSize),
                 colorFilter = ColorFilter.tint(ColorProvider(accentColor))
             )
@@ -279,7 +288,9 @@ private fun Chip(
 @Composable
 private fun TbrChip(
     modifier: GlanceModifier,
-    @DrawableRes iconResId: Int
+    @DrawableRes iconResId: Int,
+    /** Spoken state. This chip is icon only, so without it a screen reader gets nothing at all. */
+    iconDescription: String
 ) {
     val accentColor = DarkElementColors.tempBasal
     Box(
@@ -291,7 +302,7 @@ private fun TbrChip(
     ) {
         Image(
             provider = ImageProvider(iconResId),
-            contentDescription = null,
+            contentDescription = iconDescription,
             modifier = GlanceModifier.size(ChipIconSize),
             colorFilter = ColorFilter.tint(ColorProvider(accentColor))
         )

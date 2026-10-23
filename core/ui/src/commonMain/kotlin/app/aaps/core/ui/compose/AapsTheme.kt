@@ -23,6 +23,7 @@ import app.aaps.core.interfaces.profile.ProfileUtil
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.keys.StringKey
+import app.aaps.core.keys.interfaces.ClientRole
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.UiMode
 import app.aaps.core.ui.compose.navigation.DarkElementColors
@@ -114,6 +115,20 @@ fun masterEditingEnabled(): Boolean =
     LocalInspectionMode.current || !(LocalConfig.current.AAPSCLIENT && !LocalMasterReachable.current)
 
 /**
+ * This phone's role on the master ([ClientRole], see `NsClient.clientRole`). Defaults to [ClientRole.Admin]: a master,
+ * previews and tests are never limited; the main activity provides the live value on a client.
+ */
+val LocalClientRole = compositionLocalOf { ClientRole.Admin }
+
+/**
+ * [masterEditingEnabled], and this phone's role allows [role]. For controls inside a screen that both uses and defines
+ * presets: "activate" needs the screen's role, "edit" needs [ClientRole.Admin]. Always `true` on a master.
+ */
+@Composable
+fun masterEditingEnabled(role: ClientRole): Boolean =
+    masterEditingEnabled() && (LocalInspectionMode.current || LocalClientRole.current.allows(role))
+
+/**
  * CompositionLocal providing access to ProfileUtil for glucose unit conversions.
  * Avoids threading profileUtil through multiple composable layers.
  */
@@ -133,8 +148,8 @@ val LocalSnackbarHostState = compositionLocalOf<SnackbarHostState> {
 }
 
 /**
- * AndroidAPS theme object providing access to custom theme colors and extensions.
- * Supplements Material 3 theme with AndroidAPS-specific color schemes.
+ * AAPS theme object providing access to custom theme colors and extensions.
+ * Supplements Material 3 theme with AAPS-specific color schemes.
  *
  * **Available Color Schemes:**
  * - profileHelperColors: Colors for profile viewer and comparison screens
@@ -235,14 +250,14 @@ object AapsTheme {
 }
 
 /**
- * Main AndroidAPS theme wrapper that applies Material 3 theming with custom extensions.
- * Wraps content with Material 3 ColorScheme and provides AndroidAPS-specific theme values.
+ * Main AAPS theme wrapper that applies Material 3 theming with custom extensions.
+ * Wraps content with Material 3 ColorScheme and provides AAPS-specific theme values.
  *
  * **Features:**
  * - Material 3 color scheme (light/dark mode)
  * - User preference-based theme selection (Light, Dark, System)
  * - Reactive theme switching (listens to preference changes via Flow)
- * - Custom AndroidAPS color schemes (ProfileHelperColors)
+ * - Custom AAPS color schemes (ProfileHelperColors)
  *
  * **Theme Modes:**
  * - LIGHT: Always use light theme

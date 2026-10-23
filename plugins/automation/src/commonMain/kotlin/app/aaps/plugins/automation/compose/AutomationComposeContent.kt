@@ -1,26 +1,18 @@
 package app.aaps.plugins.automation.compose
 
-import app.aaps.core.ui.compose.stringResource
-import app.aaps.core.ui.CoreUiStrings
-import app.aaps.plugins.automation.AutomationStrings
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +23,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import app.aaps.core.data.ue.Action
 import app.aaps.core.data.ue.Sources
 import app.aaps.core.interfaces.logging.AAPSLogger
@@ -39,12 +34,16 @@ import app.aaps.core.interfaces.profile.ProfileRepository
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventShowSnackbar
 import app.aaps.core.interfaces.scenes.SceneAutomationApi
+import app.aaps.core.keys.interfaces.ClientRole
 import app.aaps.core.objects.extensions.profileNames
+import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.compose.ComposablePluginContent
 import app.aaps.core.ui.compose.ToolbarConfig
 import app.aaps.core.ui.compose.masterEditingEnabled
+import app.aaps.core.ui.compose.stringResource
 import app.aaps.plugins.automation.AutomationEventFactory
 import app.aaps.plugins.automation.AutomationRuntime
+import app.aaps.plugins.automation.AutomationStrings
 import app.aaps.plugins.automation.PairedBtDevices
 import app.aaps.plugins.automation.actions.ActionFactory
 import app.aaps.plugins.automation.compose.actions.ActionOption
@@ -150,8 +149,9 @@ class AutomationComposeContent(
 
         // On a client whose master is unreachable, edits can't sync right now — grey out the
         // whole list and hide the add FAB (mirrors the offline-gating of synced preference rows).
-        // Master short-circuits to true, so it is never gated.
-        val editingEnabled = masterEditingEnabled()
+        // Master short-circuits to true, so it is never gated. Automation rules are presets, so a client also needs
+        // the admin role to change them; any lower role sees the list read-only.
+        val editingEnabled = masterEditingEnabled(ClientRole.Admin)
 
         AutomationScreen(
             state = state,
@@ -492,26 +492,16 @@ private fun buildListToolbar(
         }
     },
     actions = {
+        // "Run now" is master-only — automation does not execute on a client.
+        if (showRun) {
+            IconButton(onClick = onRun) {
+                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(AutomationStrings.run_automations))
+            }
+        }
         if (onSettings != null) {
             IconButton(onClick = onSettings) {
                 Icon(Icons.Default.Settings, contentDescription = settingsDesc)
             }
         }
-        // "Run now" is master-only — automation does not execute on a client.
-        if (showRun) AutomationOverflow(onRun)
     }
 )
-
-@Composable
-private fun AutomationOverflow(onRun: () -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    IconButton(onClick = { expanded = true }) {
-        Icon(Icons.Default.MoreVert, contentDescription = stringResource(CoreUiStrings.more_options))
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        DropdownMenuItem(
-            text = { Text(stringResource(AutomationStrings.run_automations)) },
-            onClick = { expanded = false; onRun() }
-        )
-    }
-}

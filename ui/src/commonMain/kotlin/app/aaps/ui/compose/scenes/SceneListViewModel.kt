@@ -26,9 +26,9 @@ import app.aaps.core.interfaces.sync.NsClient
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.objects.extensions.profileNames
 import app.aaps.core.objects.extensions.toScenes
+import app.aaps.core.keys.interfaces.ClientRole
 import app.aaps.core.ui.CoreUiStrings
 import app.aaps.core.ui.clientcontrol.failText
-import app.aaps.ui.UiStrings
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -101,8 +101,11 @@ class SceneListViewModel(
      * the user sees the most actionable explanation first.
      */
     val editLockReasons: StateFlow<Map<String, String?>> =
-        combine(scenes, activeSceneState, masterReachable) { sceneList, active, reachable ->
-            val masterReason = if (!reachable) rh.gs(if (!nsClient.masterControlAllowed.value) CoreUiStrings.scene_lock_reason_control_disabled else CoreUiStrings.scene_lock_reason_master_offline) else null
+        combine(scenes, activeSceneState, masterReachable, nsClient.clientRole) { sceneList, active, reachable, role ->
+            val masterReason = if (!reachable) rh.gs(if (!nsClient.masterControlAllowed.value) CoreUiStrings.scene_lock_reason_control_disabled else CoreUiStrings.scene_lock_reason_master_offline)
+            // Scenes are presets: changing them is an admin's (running them is a caregiver's).
+            else if (!role.allows(ClientRole.Admin)) rh.gs(CoreUiStrings.clientcontrol_fail_not_allowed_for_role)
+            else null
             val activeReason = rh.gs(CoreUiStrings.scene_lock_reason_scene_active)
             sceneList.associate { scene ->
                 scene.id to (masterReason ?: if (scene.id == active?.scene?.id) activeReason else null)
@@ -168,10 +171,8 @@ class SceneListViewModel(
         return invalid
     }
 
-    /** Format minutes as human-readable duration using DateUtil */
-    fun formatMinutes(minutes: Int): String =
-        if (minutes == 0) rh.gs(CoreUiStrings.scene_duration_indefinite)
-        else dateUtil.niceTimeScalar(minutes * 60_000L, rh)
+    /** "3 actions, 2 h" - see [sceneSummary]. */
+    fun summary(scene: Scene): String = sceneSummary(scene, rh)
 
     // --- Dialog state ---
 

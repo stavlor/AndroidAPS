@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.aaps.core.data.model.FD
@@ -170,6 +173,7 @@ fun FoodManagementScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = AapsSpacing.fabClearance),
                     verticalArrangement = Arrangement.spacedBy(AapsSpacing.small)
                 ) {
                     items(filteredFoods, key = { it.id }) { food ->
@@ -276,7 +280,17 @@ private fun FoodItem(
                     )
                 }
             }
-            IconButton(onClick = onCalculate) {
+            // Name the food, because every row has this same button. Without it a screen reader
+            // says "Bolus wizard" once per row with nothing to tell them apart, and picking the
+            // wrong one opens the calculator already filled with the wrong carbs.
+            //
+            // The food name goes on the IconButton and the verb stays on the Icon: a
+            // contentDescription on a merging node is inserted BEFORE its children rather than
+            // replacing them, so this reads "Chicken salad, Bolus wizard".
+            IconButton(
+                onClick = onCalculate,
+                modifier = Modifier.semantics { contentDescription = food.name }
+            ) {
                 Icon(
                     imageVector = IcCalculator,
                     contentDescription = stringResource(CoreUiStrings.boluswizard),

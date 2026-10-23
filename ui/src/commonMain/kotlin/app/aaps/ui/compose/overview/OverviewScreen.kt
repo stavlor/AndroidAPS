@@ -29,13 +29,13 @@ import app.aaps.core.data.model.TT
 import app.aaps.core.interfaces.notifications.AapsNotification
 import app.aaps.core.interfaces.overview.graph.TbrState
 import app.aaps.core.interfaces.pump.BolusProgressState
-import app.aaps.core.ui.compose.isLandscape
-import app.aaps.core.ui.compose.smallestScreenWidthDp
 import app.aaps.core.ui.compose.TABLET_MIN_SW_DP
+import app.aaps.core.ui.compose.isLandscape
 import app.aaps.core.ui.compose.navigation.NavigationRequest
 import app.aaps.core.ui.compose.preference.PreferenceSubScreenDef
 import app.aaps.core.ui.compose.pump.PumpActivityDialog
 import app.aaps.core.ui.compose.pump.PumpActivityFab
+import app.aaps.core.ui.compose.smallestScreenWidthDp
 import app.aaps.ui.compose.main.TempTargetChipState
 import app.aaps.ui.compose.manageSheet.ManageViewModel
 import app.aaps.ui.compose.notificationsSheet.NotificationBottomSheet
@@ -58,7 +58,7 @@ fun OverviewScreen(
     tempTargetProgress: Float,
     tempTargetReason: TT.Reason?,
     tempTargetRecordId: Long = 0,
-    runningMode: RM.Mode,
+    runningMode: RM.Mode?,
     runningModeText: String,
     runningModeRemaining: String,
     runningModeProgress: Float,
@@ -82,6 +82,7 @@ fun OverviewScreen(
     onAutoShowConsumed: () -> Unit,
     activeSceneState: ActiveSceneState? = null,
     sceneExpired: Boolean = false,
+    activeSceneChainTargetName: String? = null,
     onEndScene: () -> Unit = {},
     onDismissScene: () -> Unit = {},
     endSceneEnabled: Boolean = true,
@@ -90,6 +91,11 @@ fun OverviewScreen(
     formatDuration: (Long) -> String = { ms -> "${(ms / 60000L).toInt()}m" },
     paddingValues: PaddingValues,
     fabBottomOffset: Dp = 0.dp,
+    /**
+     * Height of the bars drawn over the content instead of beside it (preview mode). The columns add it to the
+     * space at their end, so their last row can be scrolled clear of the bars and the toolbar while these show.
+     */
+    overlaidBarsHeight: Dp = 0.dp,
     bolusState: BolusProgressState? = null,
     pumpStatusText: String = "",
     queueStatusText: AnnotatedString? = null,
@@ -167,11 +173,13 @@ fun OverviewScreen(
                 paddingValues = paddingValues,
                 activeSceneState = activeSceneState,
                 sceneExpired = sceneExpired,
+                activeSceneChainTargetName = activeSceneChainTargetName,
                 onEndScene = onEndScene,
                 onDismissScene = onDismissScene,
                 endSceneEnabled = endSceneEnabled,
                 commandsAllowed = commandsAllowed,
-                formatDuration = formatDuration
+                formatDuration = formatDuration,
+                overlaidBarsHeight = overlaidBarsHeight
             )
         } else BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             if (isLandscape && maxWidth >= SPLIT_LAYOUT_MIN_WIDTH) {
@@ -204,11 +212,13 @@ fun OverviewScreen(
                     paddingValues = paddingValues,
                     activeSceneState = activeSceneState,
                     sceneExpired = sceneExpired,
+                    activeSceneChainTargetName = activeSceneChainTargetName,
                     onEndScene = onEndScene,
                     onDismissScene = onDismissScene,
                     endSceneEnabled = endSceneEnabled,
                     commandsAllowed = commandsAllowed,
-                    formatDuration = formatDuration
+                    formatDuration = formatDuration,
+                    overlaidBarsHeight = overlaidBarsHeight
                 )
             } else {
                 OverviewScreenStacked(
@@ -240,11 +250,13 @@ fun OverviewScreen(
                     paddingValues = paddingValues,
                     activeSceneState = activeSceneState,
                     sceneExpired = sceneExpired,
+                    activeSceneChainTargetName = activeSceneChainTargetName,
                     onEndScene = onEndScene,
                     onDismissScene = onDismissScene,
                     endSceneEnabled = endSceneEnabled,
                     commandsAllowed = commandsAllowed,
-                    formatDuration = formatDuration
+                    formatDuration = formatDuration,
+                    overlaidBarsHeight = overlaidBarsHeight
                 )
             }
         }

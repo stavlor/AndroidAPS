@@ -1,12 +1,12 @@
 package app.aaps.implementation.sharedPreferences
 
+import app.aaps.core.data.model.devAssert
 import app.aaps.core.data.time.T
+import app.aaps.core.interfaces.concurrent.AapsLock
 import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.profile.ProfileFunction
 import app.aaps.core.interfaces.profile.ProfileUtil
-import app.aaps.core.data.model.devAssert
-import app.aaps.core.interfaces.concurrent.AapsLock
 import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.HardLimits
@@ -48,16 +48,16 @@ import app.aaps.core.keys.interfaces.StringNonPreferenceKey
 import app.aaps.core.keys.interfaces.StringPreferenceKey
 import app.aaps.core.keys.interfaces.SyncDirection
 import app.aaps.core.keys.interfaces.UnitDoublePreferenceKey
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
+import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
-import dev.zacsweers.metro.AppScope
-import dev.zacsweers.metro.Inject
-import dev.zacsweers.metro.ContributesBinding
-import dev.zacsweers.metro.SingleIn
 import kotlin.math.max
 import kotlin.math.min
 
@@ -166,6 +166,8 @@ class PreferencesImpl(
     override fun get(key: BooleanPreferenceKey): Boolean =
         if (!config.isEngineeringMode() && key.engineeringModeOnly) key.defaultValue
         else if (simpleMode && key.defaultedBySM) calculatedDefaultValue(key)
+        // The switch itself is never defaultedByHardenedMode (PreferencesImplTest checks it), so reading hardenedMode here cannot loop.
+        else if (key.defaultedByHardenedMode && hardenedMode) calculatedDefaultValue(key)
         // Recompute-when-hidden is for LOCAL values only; a synced key is remote-authoritative, so its stored value wins (visibility ≠ value).
         else if (key.calculatedDefaultValue && isHidden(key) && key.sync == null) calculatedDefaultValue(key)
         else sp.getBoolean(key.key, calculatedDefaultValue(key))
@@ -495,7 +497,7 @@ class PreferencesImpl(
                 BooleanKey.NsClientLogAppStart                     -> config.APS
                 BooleanKey.NsClientCreateAnnouncementsFromErrors   -> config.APS
                 BooleanKey.NsClientCreateAnnouncementsFromCarbsReq -> config.APS
-                BooleanKey.NsClientAllowClientControl              -> simpleMode // client control on by default in simple mode, opt-in otherwise
+                BooleanKey.HardenedMode                            -> simpleMode // client control on by default in simple mode, opt-in otherwise
                 else                                               -> error("Unsupported default value calculation")
             }
         else key.defaultValue
