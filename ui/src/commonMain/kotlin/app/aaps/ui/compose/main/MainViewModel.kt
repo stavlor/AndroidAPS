@@ -314,7 +314,7 @@ class MainViewModel(
 
         val ttText = if (ttData != null && !ttExpired) {
             if (ttIsFinite) {
-                "${ttData.targetRangeText} ${dateUtil.untilString(ttData.timestamp + ttData.duration, rh)}"
+                rh.gs(InterfacesStrings.value_with_detail, ttData.targetRangeText, dateUtil.untilString(ttData.timestamp + ttData.duration, rh, withParentheses = false))
             } else {
                 ttData.targetRangeText
             }
@@ -328,7 +328,7 @@ class MainViewModel(
 
         val profileText = if (profileData != null && profileData.profileName.isNotEmpty()) {
             if (profileData.duration > 0 && !profileExpired) {
-                "${profileData.profileName} ${dateUtil.untilString(profileData.timestamp + profileData.duration, rh)}"
+                rh.gs(InterfacesStrings.value_with_detail, profileData.profileName, dateUtil.untilString(profileData.timestamp + profileData.duration, rh, withParentheses = false))
             } else {
                 profileData.profileName
             }
@@ -350,7 +350,7 @@ class MainViewModel(
             val modeName = getModeNameString(rmData.mode)
             // Full text kept for the icon's content description (accessibility).
             if (rmIsTemporaryFinite) {
-                "$modeName ${dateUtil.untilString(rmData.timestamp + rmData.duration, rh)}"
+                rh.gs(InterfacesStrings.value_with_detail, modeName, rmRemaining)
             } else {
                 modeName
             }
@@ -465,8 +465,11 @@ class MainViewModel(
         if (wizard.calculatedTotalInsulin <= 0.0)
             return QuickWizardItem(guid = guid, buttonText = buttonText, mode = entry.mode().value, disabledReason = rh.gs(UiStrings.wizard_no_insulin_required))
 
-        val detail = rh.gs(InterfacesStrings.format_carbs, entry.carbs()) +
-            " " + rh.gs(InterfacesStrings.format_insulin_units, wizard.calculatedTotalInsulin)
+        val detail = rh.gs(
+            CoreUiStrings.value_with_unit,
+            rh.gs(InterfacesStrings.format_carbs, entry.carbs()),
+            rh.gs(InterfacesStrings.format_insulin_units, wizard.calculatedTotalInsulin)
+        )
 
         val carbsAfterConstraints = constraintChecker.applyCarbsConstraints(ConstraintObject(entry.carbs(), aapsLogger)).value()
         if (carbsAfterConstraints != entry.carbs())
@@ -670,7 +673,7 @@ class MainViewModel(
         // predates the property, such as a test double, which then omits the line rather than
         // claiming a platform.
         if (config.PLATFORM.isNotEmpty()) message += "Platform: ${config.PLATFORM}\n"
-        message += "${rh.gs(CoreUiStrings.configbuilder_nightscoutversion_label)} ${nsClient.detectedNsVersion() ?: rh.gs(CoreUiStrings.not_available_full)}"
+        message += rh.gs(CoreUiStrings.value_with_unit, rh.gs(CoreUiStrings.configbuilder_nightscoutversion_label), nsClient.detectedNsVersion() ?: rh.gs(CoreUiStrings.not_available_full))
         if (!fabricPrivacy.fabricEnabled()) message += "\n${rh.gs(CoreUiStrings.fabric_upload_disabled)}"
         val enabledOptions = ExternalOptions.entries.filter { config.isEnabled(it) }
         message += rh.gs(CoreUiStrings.about_link_urls)
