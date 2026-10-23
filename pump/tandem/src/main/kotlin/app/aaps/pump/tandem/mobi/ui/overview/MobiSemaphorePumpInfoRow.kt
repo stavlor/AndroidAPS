@@ -28,7 +28,7 @@ class MobiSemaphorePumpInfoRow(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = mapSemaphoreTranslations["NOTIFICATIONS"]!!,
+                text = mapSemaphoreTranslations["NOTIFICATIONS"] ?: "NOTIFICATIONS",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -40,7 +40,7 @@ class MobiSemaphorePumpInfoRow(
             )
 
             Text(
-                text = mapSemaphoreTranslations["EVENTS"]!!,
+                text = mapSemaphoreTranslations["EVENTS"] ?: "EVENTS",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -52,7 +52,7 @@ class MobiSemaphorePumpInfoRow(
             )
 
             Text(
-                text = mapSemaphoreTranslations["HISTORY"]!!,
+                text = mapSemaphoreTranslations["HISTORY"] ?: "HISTORY",
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)

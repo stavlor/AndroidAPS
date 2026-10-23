@@ -177,23 +177,22 @@ class MobiOverviewViewModel(
         communicationStatus.refreshTrigger,
         tickerFlow(60_000L)
     ) { values ->
-        @Suppress("UNCHECKED_CAST")
-        val currentActivity = values[0] as String
-        val pumpRunningState = values[1] as PumpRunningState
-        val baseBasalRate = values[2] as PumpRate
-        val lastBolus = values[3] as BolusData?
-        val tempBasal = values[4] as TempBasalPair?
-        val pumpFirmware = values[5] as TandemPumpApiVersion
-        val pumpSerialNo = values[6] as Long
-        val pumpAddress = values[7] as String
-        val reservoir = values[8] as Double?
-        val batteryPercent = values[9] as Int?
-        val activeBolus= values[10] as BolusData?
-        val lastConnectionTime = values[11] as Long
-        val pumpError = values[12] as String?
-        val semaphoreInfo = values[13] as SemaphoreInfoDto
-        val buttonsEnabledLocal = values[14] as Boolean
-        val pairButtonEnabledLocal = values[15] as Boolean
+        val currentActivity = (values[0] as? String) ?: ""
+        val pumpRunningState = (values[1] as? PumpRunningState) ?: PumpRunningState.Unknown
+        val baseBasalRate = (values[2] as? PumpRate) ?: PumpRate(0.0)
+        val lastBolus = values[3] as? BolusData
+        val tempBasal = values[4] as? TempBasalPair
+        val pumpFirmware = (values[5] as? TandemPumpApiVersion) ?: TandemPumpApiVersion.Unknown
+        val pumpSerialNo = (values[6] as? Long) ?: 0L
+        val pumpAddress = (values[7] as? String) ?: "-"
+        val reservoir = values[8] as? Double
+        val batteryPercent = values[9] as? Int
+        val activeBolus = values[10] as? BolusData
+        val lastConnectionTime = (values[11] as? Long) ?: 0L
+        val pumpError = values[12] as? String
+        val semaphoreInfo = (values[13] as? SemaphoreInfoDto) ?: SemaphoreInfoDto()
+        val buttonsEnabledLocal = (values[14] as? Boolean) ?: true
+        val pairButtonEnabledLocal = (values[15] as? Boolean) ?: false
 
         buildUiState(
             currentActivity = currentActivity,
@@ -324,7 +323,7 @@ class MobiOverviewViewModel(
         val queueStatus = communicationStatus.queueStatus()
 
         // Last bolus
-        val lastBolus = if (lastBolus != null) {
+        val lastBolus = if (lastBolus != null && lastBolus.amountImmediateDelivered != null) {
             ch.insulinAmountAgoString(
                 PumpInsulin(lastBolus.amountImmediateDelivered!!),
                 lastBolus.timestamp
@@ -332,7 +331,7 @@ class MobiOverviewViewModel(
         } else null
 
         // Active bolus
-        val activeBolusText = if (activeBolusData!=null) {
+        val activeBolusText = if (activeBolusData != null && activeBolusData.amountImmediateDelivered != null && activeBolusData.amountImmediateRequested != null) {
             ch.insulinDeliveryAgoString(
                 amount = PumpInsulin(activeBolusData.amountImmediateDelivered!!),
                 totalAmount = PumpInsulin(activeBolusData.amountImmediateRequested!!),
@@ -398,12 +397,6 @@ class MobiOverviewViewModel(
                 //managementActions = managementActions
             )
         }
-        // else {
-        //     if (previousState == PumpRunningState.Unknown) {
-        //         buttonsEnabled.value = true
-        //         previousState = pumpRunningState
-        //     }
-        // }
 
         infoGroup = PumpInfoGroup()
 
@@ -444,7 +437,7 @@ class MobiOverviewViewModel(
                                                 else
                                                     PLACEHOLDER))
 
-        val tempBasalValue = if (tempBasal!=null ) {
+        val tempBasalValue = if (tempBasal != null && tempBasal.start != null) {
             ch.basalTbrString(rate = PumpRate(tempBasal.insulinRate),
                               startTime = tempBasal.start!!,
                               durationInMin = tempBasal.durationMinutes,
@@ -514,17 +507,16 @@ class MobiOverviewViewModel(
 
 
     private fun updateBattery(batteryPercent: Int?) {
-        if (batteryPercent==null || batteryPercent==0)
+        if (batteryPercent == null || batteryPercent == 0) {
             batteryText.value = PLACEHOLDER
-        else
+        } else {
             batteryText.value = "${batteryPercent}%"
-
-        batteryText.value = "${batteryPercent}%"
+        }
         batteryStatus.value = when {
             batteryPercent == null -> StatusLevel.NORMAL
             batteryPercent <= 20   -> StatusLevel.CRITICAL
             batteryPercent <= 30   -> StatusLevel.WARNING
-            else              -> StatusLevel.NORMAL
+            else                   -> StatusLevel.NORMAL
         }
     }
 
