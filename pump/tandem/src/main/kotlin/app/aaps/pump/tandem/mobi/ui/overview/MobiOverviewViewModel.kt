@@ -536,115 +536,48 @@ class MobiOverviewViewModel(
 
 
     private fun buildPrimaryActions(pumpRunningState: PumpRunningState, buttonsEnabledLocal: Boolean, statusBanner: StatusBanner?): List<ScreenAction> {
-        if (primaryActionsEnabled.isEmpty()) {
-            primaryActionsEnabled = listOf(
-                ScreenAction(
-                    label = rh.gs(Rco.string.refresh),
-                    icon = Icons.Filled.Refresh,
-                    enabled = true,
-                    visible = true,
-                    onClick = {
-                        scope.launch {
-                            onRefreshClick()
-                        }
+        val enabled = buttonsEnabledLocal && (statusBanner == null)
+        return listOf(
+            ScreenAction(
+                label = rh.gs(Rco.string.refresh),
+                icon = Icons.Filled.Refresh,
+                enabled = enabled,
+                visible = true,
+                onClick = {
+                    scope.launch {
+                        onRefreshClick()
                     }
-                ),
-                ScreenAction(
-                    label = rh.gs(R.string.pump_data),
-                    icon = Icons.AutoMirrored.Filled.List,
-                    enabled = true,
-                    visible = true,
-                    onClick = { onDataClick() }
-                ),
-                ScreenAction(
-                    label = rh.gs(R.string.pump_actions),
-                    icon = Icons.AutoMirrored.Filled.List,
-                    enabled = true,
-                    visible = true,
-                    onClick = { onActionClick() }
-                )
+                }
+            ),
+            ScreenAction(
+                label = rh.gs(R.string.pump_data),
+                icon = Icons.AutoMirrored.Filled.List,
+                enabled = enabled,
+                visible = true,
+                onClick = { onDataClick() }
+            ),
+            ScreenAction(
+                label = rh.gs(R.string.pump_actions),
+                icon = Icons.AutoMirrored.Filled.List,
+                enabled = enabled,
+                visible = true,
+                onClick = { onActionClick() }
             )
-        }
-
-        if (primaryActionsDisabled.isEmpty()) {
-            primaryActionsDisabled = listOf(
-                ScreenAction(
-                    label = rh.gs(Rco.string.refresh),
-                    icon = Icons.Filled.Refresh,
-                    enabled = false,
-                    visible = true,
-                    onClick = {
-                        scope.launch {
-                            onRefreshClick()
-                        }
-                    }
-                ),
-                ScreenAction(
-                    label = rh.gs(R.string.pump_data),
-                    icon = Icons.AutoMirrored.Filled.List,
-                    enabled = false,
-                    visible = true,
-                    onClick = { onDataClick() }
-                ),
-                ScreenAction(
-                    label = rh.gs(R.string.pump_actions),
-                    icon = Icons.AutoMirrored.Filled.List,
-                    enabled = false,
-                    visible = true,
-                    onClick = { onActionClick() }
-                )
-            )
-        }
-
-        return if (statusBanner == null) {
-            if (buttonsEnabledLocal) {
-                primaryActionsEnabled
-            } else {
-                primaryActionsDisabled
-            }
-        } else {
-            primaryActionsDisabled
-        }
+        )
     }
 
     private fun buildManagementActions(statusBanner: StatusBanner?, pairButtonEnabledLocal: Boolean): List<ScreenAction> {
-        if (managementActionsEnabled.isEmpty()) {
-            managementActionsEnabled = listOf(
-                ScreenAction(
-                    label = "Pair Pump",
-                    icon = Icons.Filled.Delete,
-                    enabled = true,
-                    onClick = { onPairingClick() }
-                )
+        if (!pairButtonEnabledLocal) return emptyList()
+        val enabled = (statusBanner == null)
+        return listOf(
+            ScreenAction(
+                label = "Pair Pump",
+                icon = Icons.Filled.Delete,
+                enabled = enabled,
+                onClick = { onPairingClick() }
             )
-        }
-
-        if (managementActionsDisabled.isEmpty()) {
-            managementActionsDisabled = listOf(
-                ScreenAction(
-                    label = "Pair Pump",
-                    icon = Icons.Filled.Delete,
-                    enabled = false,
-                    onClick = { onPairingClick() }
-                )
-            )
-        }
-
-        return if (pairButtonEnabledLocal) {
-            if (statusBanner == null) {
-                managementActionsEnabled
-            } else {
-                managementActionsDisabled
-            }
-        } else {
-            listOf()
-        }
+        )
     }
-
-    var primaryActionsEnabled = listOf<ScreenAction>()
-    var primaryActionsDisabled = listOf<ScreenAction>()
-    var managementActionsEnabled = listOf<ScreenAction>()
-    var managementActionsDisabled = listOf<ScreenAction>()
 
 
     private fun buildStatusBanner(pumpState: PumpRunningState, statusBanner: StatusBanner?): StatusBanner? {
