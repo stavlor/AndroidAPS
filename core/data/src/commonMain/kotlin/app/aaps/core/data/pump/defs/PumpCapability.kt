@@ -1,7 +1,5 @@
 package app.aaps.core.data.pump.defs
 
-import app.aaps.core.data.pump.defs.Capability.*
-
 enum class PumpCapability {
 
     // grouped by pump
@@ -25,15 +23,15 @@ enum class PumpCapability {
     CarelevoCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.BasalRate30min)),
 
     // Diaconn set without Refill and ReplaceBattery: the Equil wizard fills the reservoir and fits the charged battery
-    EquilCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.TDD, Capability.ManualTDDLoad),
-    
+    EquilCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.TDD, Capability.ManualTDDLoad)),
+    // Tandem
+    TandemMobiCapabilities(arrayOf(Capability.Bolus, Capability.ExtendedBolus, Capability.TempBasal, Capability.BasalProfileSet, Capability.BasalRate30min, Capability.Refill)),
+    TandemSlimCapabilities(arrayOf(Capability.Refill, Capability.ReplaceBattery));
 
-    var children: ArrayList<Capability> = ArrayList()
+        var children: ArrayList<Capability> = ArrayList()
 
-    constructor(vararg capabilities: Capability) {
-        for (capability in capabilities) {
-            children.add(capability)
-        }
+    constructor(list: Array<Capability>) {
+        children.addAll(list)
     }
 
     fun hasCapability(capability: Capability): Boolean = children.contains(capability)

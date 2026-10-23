@@ -62,7 +62,7 @@ import kotlin.time.Duration.Companion.seconds
 // When using this class, make sure that your first step is to create mConnection (see MedtronicPumpPlugin)
 abstract class PumpPluginAbstract protected constructor(
     pluginDescription: PluginDescription,
-    ownPreferences: List<NonPreferenceKey> = emptyList(),
+    ownPreferences: List<NonPreferenceKey> = emptyList<NonPreferenceKey>(),
     pumpType: PumpType,
     rh: ResourceHelper,
     aapsLogger: AAPSLogger,

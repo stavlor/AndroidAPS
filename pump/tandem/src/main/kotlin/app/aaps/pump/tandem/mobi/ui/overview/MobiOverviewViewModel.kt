@@ -10,10 +10,9 @@ import app.aaps.core.interfaces.queue.CommandQueue
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.ui.compose.ScreenAction
 import app.aaps.core.ui.compose.StatusLevel
 import androidx.compose.material.icons.Icons
-import app.aaps.core.ui.compose.pump.ActionCategory
-import app.aaps.core.ui.compose.pump.PumpAction
 import app.aaps.core.ui.compose.pump.PumpInfoRow
 import app.aaps.core.ui.compose.pump.PumpCommunicationStatus
 import app.aaps.core.ui.compose.pump.PumpOverviewUiState
@@ -544,33 +543,30 @@ class MobiOverviewViewModel(
 
 
 
-    private fun buildPrimaryActions(pumpRunningState: PumpRunningState, buttonsEnabledLocal: Boolean, statusBanner: StatusBanner?): List<PumpAction> {
-        if (primaryActionsEnabled==null || primaryActionsEnabled.isEmpty()) {
+    private fun buildPrimaryActions(pumpRunningState: PumpRunningState, buttonsEnabledLocal: Boolean, statusBanner: StatusBanner?): List<ScreenAction> {
+        if (primaryActionsEnabled.isEmpty()) {
             primaryActionsEnabled = listOf(
-                PumpAction(
-                    label = rh.gs(app.aaps.core.ui.R.string.refresh),
+                ScreenAction(
+                    label = rh.gs(Rco.string.refresh),
                     icon = Icons.Filled.Refresh,
-                    category = ActionCategory.PRIMARY,
                     enabled = true,
                     visible = true,
                     onClick = {
-                                scope.launch {
-                                    onRefreshClick()
-                                }
+                        scope.launch {
+                            onRefreshClick()
                         }
+                    }
                 ),
-                PumpAction(
+                ScreenAction(
                     label = rh.gs(R.string.pump_data),
                     icon = Icons.AutoMirrored.Filled.List,
-                    category = ActionCategory.PRIMARY,
                     enabled = true,
                     visible = true,
                     onClick = { onDataClick() }
                 ),
-                PumpAction(
+                ScreenAction(
                     label = rh.gs(R.string.pump_actions),
                     icon = Icons.AutoMirrored.Filled.List,
-                    category = ActionCategory.PRIMARY,
                     enabled = true,
                     visible = true,
                     onClick = { onActionClick() }
@@ -578,12 +574,11 @@ class MobiOverviewViewModel(
             )
         }
 
-        if (primaryActionsDisabled==null || primaryActionsDisabled.isEmpty()) {
+        if (primaryActionsDisabled.isEmpty()) {
             primaryActionsDisabled = listOf(
-                PumpAction(
-                    label = rh.gs(app.aaps.core.ui.R.string.refresh),
+                ScreenAction(
+                    label = rh.gs(Rco.string.refresh),
                     icon = Icons.Filled.Refresh,
-                    category = ActionCategory.PRIMARY,
                     enabled = false,
                     visible = true,
                     onClick = {
@@ -592,18 +587,16 @@ class MobiOverviewViewModel(
                         }
                     }
                 ),
-                PumpAction(
+                ScreenAction(
                     label = rh.gs(R.string.pump_data),
                     icon = Icons.AutoMirrored.Filled.List,
-                    category = ActionCategory.PRIMARY,
                     enabled = false,
                     visible = true,
                     onClick = { onDataClick() }
                 ),
-                PumpAction(
+                ScreenAction(
                     label = rh.gs(R.string.pump_actions),
                     icon = Icons.AutoMirrored.Filled.List,
-                    category = ActionCategory.PRIMARY,
                     enabled = false,
                     visible = true,
                     onClick = { onActionClick() }
@@ -611,58 +604,42 @@ class MobiOverviewViewModel(
             )
         }
 
-        // TOOD testing different solutions
-        return if (statusBanner==null) {
+        return if (statusBanner == null) {
             if (buttonsEnabledLocal) {
                 primaryActionsEnabled
             } else {
                 primaryActionsDisabled
             }
-        }
-        else
+        } else {
             primaryActionsDisabled
-
-
-        // return when(pumpRunningState) {
-        //     PumpRunningState.Unknown   -> primaryActionsDisabled
-        //     PumpRunningState.Suspended -> primaryActionsEnabled
-        //     PumpRunningState.Running   -> {
-        //         if (buttonsEnabledLocal)
-        //             primaryActionsEnabled
-        //         else
-        //             primaryActionsDisabled
-        //     }
-        // }
+        }
     }
 
-    private fun buildManagementActions(statusBanner: StatusBanner?, pairButtonEnabledLocal: Boolean): List<PumpAction> {
-
-        if (managementActionsEnabled==null || managementActionsEnabled.isEmpty()) {
+    private fun buildManagementActions(statusBanner: StatusBanner?, pairButtonEnabledLocal: Boolean): List<ScreenAction> {
+        if (managementActionsEnabled.isEmpty()) {
             managementActionsEnabled = listOf(
-                PumpAction(
-                    label = "Pair Pump",    //rh.gs(R.string.carelevo_overview_pump_discard_btn_label),
+                ScreenAction(
+                    label = "Pair Pump",
                     icon = Icons.Filled.Delete,
                     enabled = true,
-                    category = ActionCategory.MANAGEMENT,
                     onClick = { onPairingClick() }
                 )
             )
         }
 
-        if (managementActionsDisabled==null || managementActionsDisabled.isEmpty()) {
+        if (managementActionsDisabled.isEmpty()) {
             managementActionsDisabled = listOf(
-                PumpAction(
-                    label = "Pair Pump",    //rh.gs(R.string.carelevo_overview_pump_discard_btn_label),
+                ScreenAction(
+                    label = "Pair Pump",
                     icon = Icons.Filled.Delete,
                     enabled = false,
-                    category = ActionCategory.MANAGEMENT,
                     onClick = { onPairingClick() }
                 )
             )
         }
 
         return if (pairButtonEnabledLocal) {
-            if (statusBanner==null) {
+            if (statusBanner == null) {
                 managementActionsEnabled
             } else {
                 managementActionsDisabled
@@ -672,11 +649,10 @@ class MobiOverviewViewModel(
         }
     }
 
-
-    var primaryActionsEnabled = listOf<PumpAction>()
-    var primaryActionsDisabled = listOf<PumpAction>()
-    var managementActionsEnabled = listOf<PumpAction>()
-    var managementActionsDisabled = listOf<PumpAction>()
+    var primaryActionsEnabled = listOf<ScreenAction>()
+    var primaryActionsDisabled = listOf<ScreenAction>()
+    var managementActionsEnabled = listOf<ScreenAction>()
+    var managementActionsDisabled = listOf<ScreenAction>()
 
 
     private fun buildStatusBanner(pumpState: PumpRunningState, statusBanner: StatusBanner?): StatusBanner? {
