@@ -135,8 +135,10 @@ fun SecondaryGraphCompose(
     val maxX = remember(minTimestamp, maxTimestamp) {
         timestampToX(maxTimestamp, minTimestamp)
     }
-    val stableTimeRange = remember(minTimestamp / 60000, maxTimestamp / 60000) {
-        minTimestamp to maxTimestamp
+    // Only a key of the cached series below. Null until the real range is known: those series are empty then, and
+    // a real range in the same minutes as the stand-in one kept them empty until the data changed (#5418).
+    val stableTimeRange = remember(hasRealTimeRange, minTimestamp / 60000, maxTimestamp / 60000) {
+        if (hasRealTimeRange) minTimestamp to maxTimestamp else null
     }
 
     // =========================================================================
@@ -464,11 +466,12 @@ fun SecondaryGraphCompose(
     // Chart rendering
     // =========================================================================
 
+    val bgReadings by viewModel.bgReadingsFlow.collectAsStateWithLifecycle()
     val bottomAxisItemPlacer = rememberBottomAxisItemPlacer(minTimestamp)
     val nowLineColor = MaterialTheme.colorScheme.onSurface
     val nowLine = rememberNowLine(minTimestamp, nowTimestamp, nowLineColor)
     val inspectLine = rememberInspectLine(inspect)
-    val clockChanges = rememberClockChangeDecoration(minTimestamp, maxTimestamp)
+    val clockChanges = rememberClockChangeDecoration(minTimestamp, maxTimestamp, bgReadings)
     val decorations = remember(nowLine, visibleRangeReporter, clockChanges, inspectLine) {
         listOfNotNull(nowLine, visibleRangeReporter, clockChanges, inspectLine)
     }
