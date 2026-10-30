@@ -6,7 +6,7 @@ import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.pump.DetailedBolusInfo
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 
 import app.aaps.pump.common.data.BasalProfileDto
 import app.aaps.pump.common.driver.connector.PumpConnectorInterface
@@ -26,7 +26,7 @@ import io.reactivex.rxjava3.disposables.CompositeDisposable
 abstract class PumpConnectionManager constructor(
     val pumpStatus: PumpStatus,
     val pumpUtil: PumpUtil,
-    val sp: SP,
+    val sp: KeyValueStore,
     val aapsLogger: AAPSLogger,
     val rxBus: RxBus,
     val context: Context

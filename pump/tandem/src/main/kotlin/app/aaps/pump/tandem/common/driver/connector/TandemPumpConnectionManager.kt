@@ -13,7 +13,7 @@ import app.aaps.pump.common.defs.PumpDriverState
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.pump.common.defs.BolusData
 import app.aaps.pump.tandem.common.driver.TandemPumpStatus
@@ -37,7 +37,7 @@ import dev.zacsweers.metro.SingleIn
 class TandemPumpConnectionManager(
     val tandemPumpStatus: TandemPumpStatus,
     val tandemPumpUtil: TandemPumpUtil,
-    sp: SP,
+    sp: KeyValueStore,
     aapsLogger: AAPSLogger,
     rxBus: RxBus,
     context: Context,

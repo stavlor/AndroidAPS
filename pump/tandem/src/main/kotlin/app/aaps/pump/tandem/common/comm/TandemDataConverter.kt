@@ -5,7 +5,7 @@ import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.profile.Profile
 import app.aaps.core.interfaces.profile.Profile.ProfileValue
 import app.aaps.core.interfaces.pump.defs.determineCorrectBasalSize
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.pump.common.data.BasalProfileDto
 import app.aaps.pump.common.defs.BolusData
 import app.aaps.pump.common.defs.BolusStatus
@@ -33,7 +33,7 @@ import dev.zacsweers.metro.SingleIn
 @Inject
 class TandemDataConverter(
     var aapsLogger: AAPSLogger,
-    var sp: SP,
+    var sp: KeyValueStore,
     var pumpStatus: TandemPumpStatus,
     var pumpUtil: TandemPumpUtil
 ) : PumpDataConverter {

@@ -10,7 +10,7 @@ import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.resources.ResourceHelper
 import app.aaps.core.interfaces.rx.bus.RxBus
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.core.utils.extensions.safeGetParcelableExtra
 import com.google.gson.Gson
 import app.aaps.pump.common.events.EventPumpConnectionParametersChanged
@@ -24,7 +24,7 @@ class BondStateReceiver(
     private var targetState: Int
 ) : BroadcastReceiver() {
 
-    @Inject lateinit var sp: SP
+    @Inject lateinit var sp: KeyValueStore
     @Inject lateinit var context: Context
     @Inject lateinit var rh: ResourceHelper
     @Inject lateinit var aapsLogger: AAPSLogger
@@ -59,13 +59,13 @@ class BondStateReceiver(
             aapsLogger.info(LTag.PUMPBTCOMM, "in onReceive: bondState=$bondState, previousBondState=$previousBondState")
             if (bondState == targetState) {
                 aapsLogger.info(LTag.PUMPBTCOMM, "onReceive:  found targeted state: $targetState")
-                val currentDeviceSettings = sp.getString(deviceAddress, "")
+                val currentDeviceSettings = sp.getString(rh.gs(deviceAddress), "")
                 if (currentDeviceSettings == targetDevice) {
                     if (targetState == 12) {
-                        sp.putBoolean(bondedFlag, true)
+                        sp.putBoolean(rh.gs(bondedFlag), true)
                         rxBus.send(EventPumpConnectionParametersChanged())
                     } else if (targetState == 10) {
-                        sp.putBoolean(bondedFlag, false)
+                        sp.putBoolean(rh.gs(bondedFlag), false)
                         rxBus.send(EventPumpConnectionParametersChanged())
                     }
                     context.unregisterReceiver(this)

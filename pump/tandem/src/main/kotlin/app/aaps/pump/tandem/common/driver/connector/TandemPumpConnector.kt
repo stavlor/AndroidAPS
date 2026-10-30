@@ -11,7 +11,7 @@ import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.pump.BolusProgressData
 // import app.aaps.core.interfaces.rx.events.EventOverviewBolusProgress
 // import app.aaps.core.interfaces.rx.events.EventOverviewBolusStopDeliveryEnabled
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.pump.common.data.BasalProfileDto
 import app.aaps.pump.common.data.PumpTimeDifferenceDto
@@ -156,7 +156,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
                           var rxBus: RxBus,
                           var resourceHelper: ResourceHelper,
                           var preferences: Preferences,
-                          var sp: SP,
+                          var sp: KeyValueStore,
                           var tandemConnectionFixer: TandemConnectionFixer,
                           aapsLogger: AAPSLogger,
                           val pumpX2L: PumpX2L,

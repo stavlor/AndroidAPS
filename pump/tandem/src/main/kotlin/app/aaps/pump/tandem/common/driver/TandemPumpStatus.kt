@@ -8,7 +8,7 @@ import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.pump.tandem.common.data.defs.TandemPumpApiVersion
 import app.aaps.pump.common.data.PumpStatus
 import app.aaps.pump.common.defs.BasalProfileStatus
-import app.aaps.core.interfaces.sharedPreferences.SP
+import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.pump.common.defs.BolusData
@@ -46,7 +46,7 @@ var LocalTandemDataStore = compositionLocalOf { tandemUiDataStore }
 
 @SingleIn(AppScope::class)
 @Inject
-class TandemPumpStatus(val sp: SP,
+class TandemPumpStatus(val sp: KeyValueStore,
                        val rxBus: RxBus,
                        val preferences: Preferences
 ) : PumpStatus(PumpType.TANDEM_MOBI_BT) {
