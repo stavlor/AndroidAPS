@@ -11,12 +11,12 @@ import app.aaps.core.ui.compose.metroViewModel
  * This class is shared by all BG source plugins (Dexcom, xDrip, etc.) since they all
  * use the same UI to display blood glucose readings.
  *
- * Public so a source in another module (Dexcom G7 Direct in `:cgm:dexcomg7`) shows the same list.
- * [extraActions] adds toolbar buttons in front of the list's own, for a source with screens of its own.
+ * [extraActions] puts toolbar buttons in front of the list's own ones, for a source that has
+ * screens of its own (Dexcom ONE+ / G7 opens its sensor status from there).
  */
-class BgSourceComposeContent(
+internal class BgSourceComposeContent(
     private val title: String,
-    private val extraActions: (@Composable RowScope.() -> Unit)? = null
+    private val extraActions: (@Composable RowScope.() -> Unit)? = null,
 ) : ComposablePluginContent {
 
     @Composable

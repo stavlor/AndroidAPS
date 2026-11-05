@@ -6,7 +6,8 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Direct-to-watch: the Dexcom G7 link in the background, and the prompt for unrestricted battery use -->
+    <!-- Direct-to-watch: the sensor link in the background, and the prompt for unrestricted battery use.
+         The Bluetooth permissions come with the :plugins:dexcom_oneplus manifest. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -21,8 +22,8 @@
     <uses-permission android:name="com.google.wear.permission.SET_PUSHED_WATCH_FACE_AS_ACTIVE" />
 
     <!-- androidx.wear.watchfacepush requires minSdk 36; all usages are runtime-guarded by SDK checks -->
-    <!-- The Dexcom G7 modules need Android 12. Direct-to-watch checks the version and is off below it. -->
-    <uses-sdk tools:overrideLibrary="androidx.wear.tiles,androidx.wear.watchfacepush,app.aaps.cgm.dexcomg7.core,app.aaps.cgm.dexcomg7.protocol" />
+    <!-- The sensor driver modules need Android 12. Direct-to-watch checks the version and is not offered below it. -->
+    <uses-sdk tools:overrideLibrary="androidx.wear.tiles,androidx.wear.watchfacepush,app.aaps.plugins.dexcomoneplus,jamorham.libkeks" />
 
     <!-- Package visibility for the pushed watchfaces, so the install state can be verified. Both
          faces, whichever one the slot holds: without its entry here getPackageInfo throws for an
@@ -910,15 +911,6 @@
         <!-- taskAffinity="" on the two service-launched overlays: without it their NEW_TASK launch
              routes into the default app task, dragging a backgrounded main menu to the front —
              which is then what remains on screen once the overlay finishes -->
-        <service
-            android:name=".g7.G7WatchService"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
-        <activity
-            android:name=".g7.G7WatchActivity"
-            android:exported="false"
-            android:taskAffinity=""
-            android:theme="@style/WearAppCompatDark" />
         <activity
             android:name=".interaction.actions.ContactingMasterActivity"
             android:exported="false"
@@ -931,6 +923,10 @@
         <!-- The phone's alarm on the watch: the buttons of its notification, and its repeats -->
         <receiver
             android:name=".alarm.PhoneAlarmReceiver"
+            android:exported="false" />
+        <!-- The CGM alarms of the phone on the watch: Acknowledge on their notification, and its swipe -->
+        <receiver
+            android:name=".alarm.CgmAlarmReceiver"
             android:exported="false" />
         <activity
             android:name="androidx.wear.activity.ConfirmationActivity"
@@ -946,6 +942,15 @@
             android:name=".interaction.menus.StatusMenuActivity"
             android:exported="true"
             android:label="@string/menu_status"
+            android:theme="@style/WearAppCompatDark" />
+        <service
+            android:name=".watchdirect.WatchDirectService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+        <activity
+            android:name=".watchdirect.WatchDirectActivity"
+            android:exported="false"
+            android:taskAffinity=""
             android:theme="@style/WearAppCompatDark" />
         <activity
             android:name=".interaction.activities.LoopStatusActivity"
