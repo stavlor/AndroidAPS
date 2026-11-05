@@ -37,6 +37,7 @@ import app.aaps.appshell.navigation.appNavGraph
 import app.aaps.appshell.navigation.handleNotificationAction
 import app.aaps.appshell.navigation.handleQuickLaunchAction
 import app.aaps.appshell.navigation.handleSearchResultClick
+import app.aaps.core.interfaces.configuration.Config
 import app.aaps.core.interfaces.logging.AAPSLogger
 import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.notifications.IosNotificationDelegate
@@ -54,7 +55,9 @@ import app.aaps.core.ui.compose.icons.IcAaps
 import app.aaps.core.ui.compose.metroViewModel
 import app.aaps.core.ui.compose.rememberOwnViewModelStoreOwner
 import app.aaps.core.ui.compose.stringResource
+import app.aaps.core.utils.gitRemoteShort
 import app.aaps.implementation.lifecycle.IosProtectionLifecycle
+import app.aaps.implementation.receivers.IosTimeDateOrTZChangeWatcher
 import app.aaps.implementation.logging.AAPSLoggerIos
 import app.aaps.implementation.protection.KeychainUnavailableException
 import app.aaps.ios.shell.IosAppStartup
@@ -190,6 +193,31 @@ private fun installCrashLogging() {
     }
 }
 
+/**
+ * Tells Crashlytics which build this is - the same six keys Android has sent since 2019.
+ *
+ * Without them one report looks like any other. The version in the Crashlytics header comes from
+ * the app bundle, and a clone that has never run `generateIosVersionXcconfig` falls back to the
+ * version typed into the targets with build number 1 - so one person building two hundred times
+ * is indistinguishable from two hundred users. These keys carry the truth instead: the commit,
+ * the repository and whether the tree was clean, which is how a report out of a fork is told
+ * apart from one from upstream.
+ *
+ * Set whether or not collection is on. Nothing leaves the device while it is off, because
+ * Crashlytics writes no report at all then, and setting them unconditionally means a user who turns
+ * reporting on later in the session does not get unlabelled reports until the next launch. A build
+ * with no Firebase config ignores all of this: `CrashlyticsCrashReporter` returns early when it was
+ * never configured, and `NoCrashReporter` does nothing at all.
+ */
+internal fun setBuildIdentityKeys(crashReporter: CrashReporter, config: Config) {
+    crashReporter.setCustomKey("HEAD", config.HEAD)
+    crashReporter.setCustomKey("Version", config.VERSION_NAME)
+    crashReporter.setCustomKey("BuildType", config.BUILD_TYPE)
+    crashReporter.setCustomKey("BuildFlavor", config.FLAVOR)
+    crashReporter.setCustomKey("Remote", gitRemoteShort(config.REMOTE))
+    crashReporter.setCustomKey("Committed", config.COMMITTED.toString())
+}
+
 /** The app, built and started: what the composition needs from outside it. */
 private class StartedApp(
     val graph: IosAppGraph,
@@ -223,10 +251,11 @@ private fun startApp(nsSocketFactory: NsSocketFactory, crashReporter: CrashRepor
     // `PreferencesImpl` answers the shared default - true - in Simple Mode, which would switch
     // collection on for precisely the users whose settings screen never shows them the row.
     crashReporter.setCollectionEnabled(graph.fabricPrivacy.fabricEnabled())
+    setBuildIdentityKeys(crashReporter, graph.config)
 
     // Before the composition, not beside it: the first view model built reads the active pump, and
     // an empty plugin list there throws from a coroutine and takes the process with it.
-    IosAppStartup(logger, PluginStoreRegistry(graph.pluginStore, graph.configBuilder), graph.contributedPlugins) { graph.periodicMaintenance.start(graph.appScope) }.run()
+    IosAppStartup(logger, PluginStoreRegistry(graph.pluginStore, graph.configBuilder), graph.contributedPlugins, graph.rxBus, graph.appScope) { graph.periodicMaintenance.start(graph.appScope) }.run()
 
     // Attach to the notification centre. Registering a category only records it now, so that building
     // the graph does not need an app bundle - see `IosNotificationDelegate.install`. It is done here
@@ -253,6 +282,11 @@ private fun startApp(nsSocketFactory: NsSocketFactory, crashReporter: CrashRepor
     // Clears a granted PIN or biometric session when the app is backgrounded, which is what Android
     // gets from `ProcessLifecycleListener.onPause`. Same placement and the same UIKit reason.
     IosProtectionLifecycle(logger, graph.protectionCheck).start()
+
+    // Sends EventTimeZoneChanged and tells the pump driver, which is what Android gets from
+    // `TimeDateOrTZChangeReceiver`. Without it a flight left the IOB of the last hours calculated in
+    // the old zone. Same placement: it attaches to the notification centre.
+    IosTimeDateOrTZChangeWatcher(logger, graph.activePlugin, graph.appScope, graph.rxBus).start()
 
     // Read once, outside the composition, for the same reason as the graph: decoding the icon on
     // every recomposition would be work for nothing.
