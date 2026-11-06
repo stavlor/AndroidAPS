@@ -10,14 +10,11 @@ import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.pump.tandem.common.data.defs.TandemPumpApiVersion
 import app.aaps.pump.common.data.PumpStatus
 import app.aaps.pump.common.defs.BasalProfileStatus
-import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
-import app.aaps.core.keys.BooleanKey
+import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.pump.common.defs.BolusData
 import app.aaps.pump.common.defs.PumpConfigurationTypeInterface
 import app.aaps.pump.common.defs.PumpDriverMode
-import app.aaps.pump.common.defs.PumpUpdateFragmentType
-import app.aaps.pump.common.events.EventPumpFragmentValuesChanged
 import app.aaps.pump.tandem.common.comm.data.DisconnectDataDto
 import app.aaps.pump.tandem.common.comm.ui.TandemUIDataStore
 import app.aaps.pump.tandem.common.comm.ui.TandemUiStateWriter
@@ -48,14 +45,12 @@ var LocalTandemDataStore = compositionLocalOf { tandemUiDataStore }
 
 @SingleIn(AppScope::class)
 @Inject
-class TandemPumpStatus(val sp: KeyValueStore,
-                       val rxBus: RxBus,
+class TandemPumpStatus(val rxBus: RxBus,
                        val preferences: Preferences,
                        private val aapsLogger: AAPSLogger
 ) : PumpStatus(PumpType.TANDEM_MOBI_BT) {
 
     companion object {
-
         // Safety backstop: the UI workflow latch (preventQueueExecution / preventConnect) is
         // released on navigation-leave, tab dispose and lifecycle events. If every release path
         // is missed, this latch locked the Loop out overnight (2026-09-06: ~5.4h, no SMBs,
@@ -68,7 +63,7 @@ class TandemPumpStatus(val sp: KeyValueStore,
     lateinit var pumpDescription: PumpDescription
 
     // tandem pump firmware
-    val tandemPumpFirmwareFlow = MutableStateFlow<TandemPumpApiVersion>(TandemPumpApiVersion.Unknown)
+    val tandemPumpFirmwareFlow = MutableStateFlow(TandemPumpApiVersion.Unknown)
     var tandemPumpFirmware: TandemPumpApiVersion
         get() = tandemPumpFirmwareFlow.value
         set(value) {
@@ -89,7 +84,7 @@ class TandemPumpStatus(val sp: KeyValueStore,
         }
 
     // semaphore info
-    val semaphoreInfoFlow = MutableStateFlow<SemaphoreInfoDto>(SemaphoreInfoDto())
+    val semaphoreInfoFlow = MutableStateFlow(SemaphoreInfoDto())
     var semaphoreInfo: SemaphoreInfoDto
         get() = semaphoreInfoFlow.value
         set(value) {
@@ -108,8 +103,6 @@ class TandemPumpStatus(val sp: KeyValueStore,
             basalProfileStatus = BasalProfileStatus.ProfileOK
         }
 
-
-    var bolusStep: Double = 0.1   // ??
 
     // UI workflow latch: latched by TandemUiController.refreshMainAppData(START_ACTIONS/START_DATA)
     // when the Actions/Data screens start, released on navigation-leave / tab dispose /
@@ -154,7 +147,6 @@ class TandemPumpStatus(val sp: KeyValueStore,
     var settings: MutableMap<PumpConfigurationTypeInterface, Any>? = null
     var featuresV2: PumpFeaturesV2Response? = null
     var featuresV1: PumpFeaturesV1Response? = null
-    var lastQualifyingEventsInfo: String? = null
     var tandemPumpVersion : PumpVersionDto? = null
     var tandemAlerts : Set<AlertStatusResponse.AlertResponseType>? = null
     var tandemAlarms : Set<AlarmStatusResponse.AlarmResponseType>? = null
@@ -225,7 +217,7 @@ class TandemPumpStatus(val sp: KeyValueStore,
     var lastPairingStatus: TandemPairingStatus = TandemPairingStatus.Unknown
 
     override val errorInfo: String
-        get() = "-" //if (errorDescription == null) "-" else errorDescription!!
+        get() = "-"
 
 
     override fun updateLastConnectionInFragment() {

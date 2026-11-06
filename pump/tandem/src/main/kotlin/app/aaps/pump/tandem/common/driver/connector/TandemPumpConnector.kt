@@ -12,7 +12,7 @@ import app.aaps.core.interfaces.pump.BolusProgressData
 import app.aaps.core.interfaces.pump.PumpInsulin
 // import app.aaps.core.interfaces.rx.events.EventOverviewBolusProgress
 // import app.aaps.core.interfaces.rx.events.EventOverviewBolusStopDeliveryEnabled
-import app.aaps.core.interfaces.sharedPreferences.KeyValueStore
+import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.keys.interfaces.TextRef
 import app.aaps.pump.common.R
@@ -160,8 +160,6 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
                           var rxBus: RxBus,
                           var resourceHelper: ResourceHelper,
                           var preferences: Preferences,
-                          var sp: KeyValueStore,
-                          var tandemConnectionFixer: TandemConnectionFixer,
                           aapsLogger: AAPSLogger,
                           val pumpX2L: PumpX2L,
                           private var tandemDataConverter: TandemDataConverter,
@@ -171,9 +169,10 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
     private var tandemPumpCommunicationManager: TandemPumpCommunicationManager? = null
     var btAddressUsed: String? = null
 
-    private var TAG = LTag.PUMPCOMM
+    companion object {
+        private var TAG = LTag.PUMPCOMM
+    }
 
-    // TODO Better Error response handling
 
     fun getCommunicationManager(): TandemPumpCommunicationManager? {
         return tandemPumpCommunicationManager
@@ -183,7 +182,6 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
     override fun connectToPump(): Boolean {
         var newBtAddress = tandemPumpUtil
             .getStringPreferenceOrDefaultOrNull(TandemStringPreferenceKey.PumpAddress, null)
-        //sp.getStringOrNull(TandemPumpConst.Prefs.PumpAddress, null)
 
         aapsLogger.info(TAG, "connectToPump with $newBtAddress")
 
@@ -211,7 +209,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
 
             val cfg = TandemConfig()
                 .withFilterToBluetoothMac(newBtAddress)
-                .withPairingCodeType(tandemPumpUtil.pairingCodeType)
+                .withPairingCodeType(TandemPumpUtil.PAIRING_CODE_TYPE)
 
             this.tandemPumpCommunicationManager = TandemPumpCommunicationManager(
                 context = context,
@@ -222,8 +220,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
                 rxBus = rxBus,
                 preferences = preferences,
                 resourceHelper = resourceHelper,
-                timberTree = pumpX2L,
-                tandemConnectionFixer = tandemConnectionFixer
+                timberTree = pumpX2L
             )
             this.btAddressUsed = newBtAddress
             tandemPumpStatus.pumpAddress = newBtAddress
@@ -278,12 +275,9 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
         val map:  MutableMap<PumpConfigurationTypeInterface, Any> = mutableMapOf()
 
         try {
-            val comm = getCommunicationManager()
-            if (comm == null) {
-                return DataCommandResponse(
-                    PumpCommandType.GetSettings, false, "Problem reading settings, no active communicationManager", map
-                )
-            }
+            val comm = getCommunicationManager() ?: return DataCommandResponse(
+                PumpCommandType.GetSettings, false, "Problem reading settings, no active communicationManager", map
+            )
             addToSettings(TandemPumpSettingType.CONTROL_IQ_ENABLED, map, comm.sendCommand(getCorrectRequest(TandemCommandType.ControlIQInfo)))
             addToSettings(TandemPumpSettingType.BASAL_LIMIT, map, comm.sendCommand(BasalLimitSettingsRequest()))
             addToSettings(TandemPumpSettingType.MAX_BOLUS, map, comm.sendCommand(GlobalMaxBolusSettingsRequest()))
@@ -899,7 +893,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
             val responseText = if (responseMessage==null) {
                 "Response for $description was null (timeout or some other problem)."
             } else {
-                val errorResponse: ErrorResponse = responseMessage as ErrorResponse
+                val errorResponse: ErrorResponse = responseMessage
                 "Received Error Response: ${errorResponse.errorCode.name} on ${description}."
             }
 
@@ -910,8 +904,6 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
             null
         }
     }
-
-    var zeroByte : Byte = 0
 
 
     fun getInitialBasalProfileConfiguration(): PumpProfileDto {
@@ -1087,6 +1079,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
     }
 
 
+/*
     fun sendBasalProfileNew(pumpProfileDto: PumpProfileDto, idpSegments: List<IDPSegmentDto>): DataCommandResponse<Boolean?> {
 
         aapsLogger.info(LTag.PUMPCOMM, "sendBasalProfileNew")
@@ -1166,6 +1159,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
 
         return DataCommandResponse(PumpCommandType.SetBasalProfile, success, if (success) null else "Problem setting basal profile.", success)
     }
+*/
 
 
     private fun deleteIDPSegment(idpSegment: IDPSegmentResponse, index: Int): Boolean {
@@ -1255,7 +1249,7 @@ class TandemPumpConnector(var tandemPumpStatus: TandemPumpStatus,
 
         if (responseMessage!=null) {
 
-            val gsonData = getJsonStringFromObject(responseMessage)
+            //val gsonData = getJsonStringFromObject(responseMessage)
             //aapsLogger.debug(LTag.PUMPCOMM, " MirrorResponse: $gsonData")
 
             val homeScreenMirrorDto = HomeScreenMirrorDto()

@@ -10,7 +10,7 @@ import dev.zacsweers.metro.Provider
 import dev.zacsweers.metro.SingleIn
 
 
-
+@Deprecated(message = "This class probably won't be needed")
 @SingleIn(AppScope::class)
 @Inject
 class TandemConnectionFixer(
@@ -22,7 +22,7 @@ class TandemConnectionFixer(
     val TAG = LTag.PUMPBTCOMM
     @Volatile var running = false
 
-    val enabled = TandemMobiPluginVersion.connectionFixerEnabled
+    val enabled = false //TandemMobiPluginVersion.connectionFixerEnabled
 
     fun startConnectionFix() {
         if (!enabled) {
