@@ -21,8 +21,8 @@ enum class PumpCapability {
     TandemSlimCapabilities(Refill, ReplaceBattery),
     TandemMobiCapabilities(Bolus, TempBasal, BasalProfileSet, Refill, BasalRate30min),
     // Diaconn set without Refill and ReplaceBattery: the Equil wizard fills the reservoir and fits the charged battery
-    EquilCapabilities(Bolus, ExtendedBolus, TempBasal, BasalProfileSet, TDD, ManualTDDLoad)
-    ;
+    // No TDD: the driver cannot read daily totals from the pump (loadTDDs always failed), so AAPS counts them itself.
+    EquilCapabilities(Bolus, ExtendedBolus, TempBasal, BasalProfileSet, ManualTDDLoad);
 
 
     var children: ArrayList<Capability> = ArrayList()
