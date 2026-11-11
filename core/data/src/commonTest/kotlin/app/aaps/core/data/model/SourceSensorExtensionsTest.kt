@@ -33,6 +33,7 @@ class SourceSensorExtensionsTest {
         assertTrue(SourceSensor.LIBRE_2.advancedFilteringSupported())
         assertTrue(SourceSensor.LIBRE_2.advancedFilteringSupported())
         assertTrue(SourceSensor.LIBRE_3.advancedFilteringSupported())
+        assertTrue(SourceSensor.LIBRE_3_NATIVE.advancedFilteringSupported())
     }
 
     @Test

@@ -24,6 +24,8 @@ private val ADVANCED_FILTERING_SENSORS = setOf(
     SourceSensor.DEXCOM_ONEPLUS_NATIVE,
     SourceSensor.LIBRE_2,
     SourceSensor.LIBRE_3,
+    // Libre 3 / 3 Plus read by the AAPS native plugin. The same sensor as LIBRE_3.
+    SourceSensor.LIBRE_3_NATIVE,
     SourceSensor.SYAI_TAG,
     SourceSensor.RANDOM,
 )
