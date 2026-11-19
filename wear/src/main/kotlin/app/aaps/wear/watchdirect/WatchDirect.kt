@@ -20,6 +20,7 @@ import app.aaps.core.interfaces.logging.LTag
 import app.aaps.core.interfaces.rx.bus.RxBus
 import app.aaps.core.interfaces.rx.events.EventWearToMobile
 import app.aaps.core.interfaces.rx.weardata.EventData
+import app.aaps.core.interfaces.sharedPreferences.SP
 import app.aaps.wear.R
 import app.aaps.wear.alarm.CgmAlarmWatch
 import app.aaps.wear.comm.DataHandlerWear
@@ -66,7 +67,8 @@ class WatchDirect(
     private val aapsLogger: AAPSLogger,
     private val repository: ComplicationDataRepository,
     private val dataHandler: DataHandlerWear,
-    private val cgmAlarmWatch: CgmAlarmWatch
+    private val cgmAlarmWatch: CgmAlarmWatch,
+    private val sp: SP
 ) {
 
     /** One at a time: the link's callbacks and the phone's messages are handled in order. */
@@ -101,17 +103,50 @@ class WatchDirect(
     /**
      * True when the watch has a screen where the user can allow unrestricted battery use.
      *
-     * Some watches have none (a Pixel Watch 4 was reported). There a warning would ask for something
-     * the user cannot do and would never go away, so the app does not ask. This looks for the screen
-     * itself rather than at the Android version: the version does not say whether a maker kept the
-     * setting, and a watch that has it must still be asked, or it may stop the link in the background.
-     * The app info screen does not count, it has no battery choice on these watches.
+     * Some watches have none. There a warning would ask for something the user cannot do and would
+     * never go away, so the app does not ask. Wear OS 7 on a Pixel Watch 4 answers both battery actions
+     * with an empty placeholder screen ([isPlaceholderSettings]), so a screen that only resolves is not
+     * enough: the placeholder does not count. This looks for the screen itself rather than at the
+     * Android version: the version does not say whether a maker kept the setting, and a watch that has
+     * it must still be asked, or it may stop the link in the background. The app info screen does not
+     * count, it has no battery choice on these watches.
      */
     private val canAskForUnrestrictedBattery: Boolean by lazy {
-        val found = batterySettingsIntents(context.packageName).any { context.packageManager.resolveActivity(it, 0) != null }
+        val found = batterySettingsScreens().isNotEmpty()
         if (!found) aapsLogger.info(LTag.WEAR, "Direct to watch: this watch has no battery setting to ask for, the battery warning is not shown")
         found
     }
+
+    /**
+     * The battery screens this watch really has, best first, each pointed at its own activity so the
+     * placeholder is never picked instead. Empty when the watch has none.
+     */
+    fun batterySettingsScreens(): List<Intent> =
+        batterySettingsIntents(context.packageName).mapNotNull { intent ->
+            context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                .map { it.activityInfo }
+                .firstOrNull { it.exported && !isPlaceholderSettings(it.name) }
+                ?.let { Intent(intent).setClassName(it.packageName, it.name) }
+        }
+
+    /**
+     * True when the wearer already opened the battery screen and came back with battery use still
+     * restricted: the screen did not work on this watch, or the wearer said no. Asking again with a
+     * notification and a warning on the phone does not help then, so they stop. The watch's own
+     * screen still shows a short note with the button ([batteryStillRestricted]).
+     *
+     * Saved, so it survives a restart of the watch app. Cleared when battery use becomes unrestricted,
+     * so a later restriction is warned about again.
+     */
+    private val batteryAskFailed: Boolean
+        get() = sp.getBoolean(R.string.key_watch_direct_battery_ask_failed, false)
+
+    /** Set when the wearer taps the battery button, checked when the watch's own screen comes back. */
+    private var batteryAskPending = false
+
+    /** For the watch's own screen: the warning stopped after a try that did not help, but battery use is still restricted. */
+    val batteryStillRestricted: Boolean
+        get() = canAskForUnrestrictedBattery && batteryAskFailed && !isBatteryUnrestricted
 
     private val hasPermissions: Boolean
         get() = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
@@ -173,9 +208,23 @@ class WatchDirect(
         }
     }
 
+    /** The wearer tapped the battery button on the watch's own screen. */
+    fun onBatteryAskStarted() {
+        scope.launch { batteryAskPending = true }
+    }
+
     /** The watch's own screen came back: battery use may have changed in the settings. */
     fun refresh() {
-        scope.launch { report(describe()) }
+        scope.launch {
+            if (batteryAskPending) {
+                batteryAskPending = false
+                if (!isBatteryUnrestricted) {
+                    aapsLogger.info(LTag.WEAR, "Direct to watch: battery use is still restricted after the battery screen, the battery warning is not shown again")
+                    sp.putBoolean(R.string.key_watch_direct_battery_ask_failed, true)
+                }
+            }
+            report(describe())
+        }
     }
 
     private fun handle(message: EventData.CgmWatchDirect) {
@@ -237,8 +286,19 @@ class WatchDirect(
             address = address ?: waitingForPermission?.address,
             latestReadingAt = latestReadingAt,
             detail = refusal.takeIf { state == EventData.CgmWatchState.REFUSED },
-            batteryRestricted = state != EventData.CgmWatchState.OFF && canAskForUnrestrictedBattery && !isBatteryUnrestricted
+            batteryRestricted = batteryWarning(state)
         )
+    }
+
+    /** True when the wearer should be asked for unrestricted battery use. */
+    private fun batteryWarning(state: EventData.CgmWatchState): Boolean {
+        if (state == EventData.CgmWatchState.OFF || !canAskForUnrestrictedBattery) return false
+        if (isBatteryUnrestricted) {
+            // Allowed now: forget an earlier try that did not help, so a later restriction is warned about again
+            if (batteryAskFailed) sp.putBoolean(R.string.key_watch_direct_battery_ask_failed, false)
+            return false
+        }
+        return !batteryAskFailed
     }
 
     private var latestReadingAt: Long? = null
@@ -358,3 +418,12 @@ internal fun batterySettingsIntents(packageName: String): List<Intent> = listOf(
     Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")),
     Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
 )
+
+/**
+ * Wear OS Settings answers settings actions it does not have with this screen (seen on a Pixel Watch 4
+ * with Wear OS 7). It cannot allow anything, so it is not a battery screen.
+ */
+internal const val WEAR_PLACEHOLDER_SETTINGS = "com.google.android.clockwork.settings.FakeSettingsActivity"
+
+/** True for an activity class that only stands in for a missing setting. */
+internal fun isPlaceholderSettings(activityClassName: String): Boolean = activityClassName == WEAR_PLACEHOLDER_SETTINGS

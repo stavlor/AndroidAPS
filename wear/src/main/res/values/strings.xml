@@ -230,6 +230,7 @@
     <string name="key_phone_alarm_text" translatable="false">phone_alarm_text</string>
     <string name="key_phone_alarm_since" translatable="false">phone_alarm_since</string>
     <string name="key_phone_alarm_can_mute" translatable="false">phone_alarm_can_mute</string>
+    <string name="key_watch_direct_battery_ask_failed" translatable="false">watch_direct_battery_ask_failed</string>
     <string name="key_show_graph_basal" translatable="false">show_graph_basal</string>
     <string name="key_show_graph_temp_basal" translatable="false">show_graph_temp_basal</string>
     <string name="key_show_graph_carbs" translatable="false">show_graph_carbs</string>
@@ -479,6 +480,7 @@
     <string name="watch_direct_notification_refused">The sensor refused the watch. Check the sensor on the phone.</string>
     <string name="watch_direct_allow">Allow</string>
     <string name="watch_direct_allow_battery">Allow unrestricted battery use</string>
+    <string name="watch_direct_battery_still_restricted">Battery use is still restricted. AAPS does not warn about it again. If readings stop when the screen is off, try again.</string>
     <string name="watch_direct_low">Low glucose</string>
     <string name="watch_direct_urgent_low">Urgent low glucose</string>
     <string name="watch_direct_low_message" comment="%1$s=glucose value with its number format, %2$s=trend arrow. Example: 62 ↘ - no reading from the phone for 15 minutes">%1$s %2$s - no reading from the phone for 15 minutes</string>

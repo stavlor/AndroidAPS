@@ -80,9 +80,11 @@ class WatchDirectActivity : WearMetroActivity() {
                                     Text(stringResource(R.string.watch_direct_allow))
                                 }
                             }
-                        } else if (status.batteryRestricted) {
+                        } else if (status.batteryRestricted || (state != EventData.CgmWatchState.OFF && watchDirect.batteryStillRestricted)) {
+                            // After a try that did not help there is no notification any more, only this note and the button
+                            val note = if (status.batteryRestricted) R.string.watch_direct_notification_battery else R.string.watch_direct_battery_still_restricted
                             item {
-                                Text(stringResource(R.string.watch_direct_notification_battery), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                                Text(stringResource(note), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                             }
                             item {
                                 Button(
@@ -118,8 +120,10 @@ class WatchDirectActivity : WearMetroActivity() {
      */
     @SuppressLint("BatteryLife")
     private fun askForUnrestrictedBattery() {
-        // The same screens WatchDirect looks for before it shows the warning, then app info as a last try.
-        val intents = batterySettingsIntents(packageName) +
+        // Checked when this screen comes back: still restricted means the try did not help
+        watchDirect.onBatteryAskStarted()
+        // The real screens WatchDirect found (never the placeholder), then app info as a last try.
+        val intents = watchDirect.batterySettingsScreens() +
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         for (intent in intents) {
             try {
@@ -127,6 +131,8 @@ class WatchDirectActivity : WearMetroActivity() {
                 return
             } catch (_: ActivityNotFoundException) {
                 // try the next one
+            } catch (_: SecurityException) {
+                // not exported for other apps: try the next one
             }
         }
     }
