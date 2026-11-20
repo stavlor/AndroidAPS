@@ -230,6 +230,7 @@
     <string name="key_phone_alarm_text" translatable="false">phone_alarm_text</string>
     <string name="key_phone_alarm_since" translatable="false">phone_alarm_since</string>
     <string name="key_phone_alarm_can_mute" translatable="false">phone_alarm_can_mute</string>
+    <string name="key_watch_direct_battery_ask_failed" translatable="false">watch_direct_battery_ask_failed</string>
     <string name="key_show_graph_basal" translatable="false">show_graph_basal</string>
     <string name="key_show_graph_temp_basal" translatable="false">show_graph_temp_basal</string>
     <string name="key_show_graph_carbs" translatable="false">show_graph_carbs</string>
@@ -482,6 +483,7 @@
     <string name="watch_direct_notification_refused">The sensor refused the watch. Check the sensor on the phone.</string>
     <string name="watch_direct_allow">Allow</string>
     <string name="watch_direct_allow_battery">Allow unrestricted battery use</string>
+    <string name="watch_direct_battery_still_restricted">Battery use is still restricted. AAPS does not warn about it again. If readings stop when the screen is off, try again.</string>
     <string name="watch_direct_phone_signal_lost_title">Phone has no sensor signal</string>
     <string name="watch_direct_phone_signal_lost" comment="Shown on the watch when the phone lost the sensor but the watch still reads it. %1$s=the alarm text from the phone, a full sentence with its full stop. Example: On the phone: No signal from the CGM sensor since 12:25. The loop is not running. The watch still reads the sensor.">On the phone: %1$s The loop is not running. The watch still reads the sensor.</string>
     <string name="watch_direct_low">Low glucose</string>
