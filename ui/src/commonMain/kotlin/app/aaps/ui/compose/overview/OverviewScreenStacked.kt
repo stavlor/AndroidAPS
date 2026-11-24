@@ -211,6 +211,12 @@ fun OverviewScreenStacked(
                 insulinStatus = statusState.insulinStatus,
                 cannulaStatus = statusState.cannulaStatus,
                 batteryStatus = statusState.batteryStatus,
+                warmUpStatus = statusState.warmUpStatus,
+                secondSensorStatus = statusState.secondSensorStatus,
+                canPromoteSecondSensor = statusState.canPromoteSecondSensor,
+                onPromoteSecondSensor = { statusViewModel.promoteSecondSensor() },
+                promotionMessage = statusState.promotionMessage,
+                onDismissPromotionMessage = { statusViewModel.clearPromotionMessage() },
                 showFill = statusState.showFill,
                 showPumpBatteryChange = statusState.showPumpBatteryChange,
                 commandsAllowed = commandsAllowed,
@@ -219,25 +225,6 @@ fun OverviewScreenStacked(
                 expanded = statusExpanded,
                 onExpandedChange = { statusExpanded = it }
             )
-        OverviewStatusSection(
-            sensorStatus = statusState.sensorStatus,
-            insulinStatus = statusState.insulinStatus,
-            cannulaStatus = statusState.cannulaStatus,
-            batteryStatus = statusState.batteryStatus,
-            warmUpStatus = statusState.warmUpStatus,
-            secondSensorStatus = statusState.secondSensorStatus,
-            canPromoteSecondSensor = statusState.canPromoteSecondSensor,
-            onPromoteSecondSensor = { statusViewModel.promoteSecondSensor() },
-            promotionMessage = statusState.promotionMessage,
-            onDismissPromotionMessage = { statusViewModel.clearPromotionMessage() },
-            showFill = statusState.showFill,
-            showPumpBatteryChange = statusState.showPumpBatteryChange,
-            commandsAllowed = commandsAllowed,
-            onNavigate = onNavigate,
-            statusLightsDef = statusLightsDef,
-            expanded = statusExpanded,
-            onExpandedChange = { statusExpanded = it }
-        )
 
             if (pinned) {
                 // Only the graphs scroll
