@@ -314,7 +314,7 @@ fun CgmStepper(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(AapsSpacing.chipProgressHeight)
+                            .height(AapsSpacing.small)
                             .background(
                                 color = if (index <= currentStep) {
                                     MaterialTheme.colorScheme.primary
